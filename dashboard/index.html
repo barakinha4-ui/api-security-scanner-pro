@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Security Scanner Pro — Enterprise Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1d4ed8',
+                        dark: '#0f172a',
+                        card: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .finding-card {
+            transition: all 0.2s ease;
+        }
+
+        .finding-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-slate-200 min-h-screen">
+
+    <!-- Sidebar -->
+    <div class="fixed left-0 top-0 h-full w-64 glass border-r border-slate-800 p-6 flex flex-col gap-8 hidden lg:flex">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center font-bold text-white text-xl">
+                AS</div>
+            <h1 class="text-xl font-bold tracking-tight">Scanner <span
+                    class="text-primary text-xs uppercase ml-1 opacity-80">Pro</span></h1>
+        </div>
+
+        <nav class="flex flex-col gap-2">
+            <a href="#" class="flex items-center gap-3 p-3 rounded-lg bg-primary/10 text-primary font-semibold">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+                Dashboard
+            </a>
+            <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-slate-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                Reports
+            </a>
+            <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-slate-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                    </path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Settings
+            </a>
+        </nav>
+
+        <div class="mt-auto bg-primary/20 p-4 rounded-xl border border-primary/30">
+            <p class="text-xs font-semibold text-primary mb-1">PRO FEATURES ENABLED</p>
+            <p class="text-[10px] text-slate-400">Multi-user IDOR, CI/CD Integration, Premium Reports</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="lg:ml-64 p-8">
+        <div id="newScanModal"
+            class="fixed inset-0 bg-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="glass w-full max-w-lg rounded-2xl p-8 animate-in zoom-in duration-200">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">Launch New Scan</h3>
+                    <button id="closeModal" class="text-slate-500 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Target API URL</label>
+                        <input id="scanTarget" type="text" placeholder="https://api.example.com"
+                            class="w-full bg-dark/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Victim Auth
+                                (IDOR)</label>
+                            <input id="scanVictim" type="password" placeholder="Key or Token"
+                                class="w-full bg-dark/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Attacker Auth</label>
+                            <input id="scanAttacker" type="password" placeholder="Key or Token"
+                                class="w-full bg-dark/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none">
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-4">
+                        <span id="apiStatus" class="text-[10px] font-bold text-slate-500 flex items-center gap-2">
+                            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-slate-500"></span> API: IDLE
+                        </span>
+                        <button id="startScanBtn"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-xl shadow-indigo-600/20">
+                            Execute Security Audit
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-10">
+            <div>
+                <h2 class="text-2xl font-bold">Audit Overview</h2>
+                <p class="text-slate-400 text-sm mt-1">Enterprise-grade API Security Analysis</p>
+            </div>
+            <div class="flex gap-4">
+                <button id="openScanBtn"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    New Live Scan
+                </button>
+                <button id="uploadBtn"
+                    class="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 border border-white/5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Import JSON
+                </button>
+                <input type="file" id="fileInput" class="hidden" accept=".json">
+            </div>
+        </header>
+
+        <div id="welcomeScreen" class="flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-6 text-slate-500">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">No Report Loaded</h3>
+            <p class="text-slate-400 max-w-sm mb-8">Run the scanner CLI and upload the generated <code
+                    class="bg-white/5 border border-white/10 px-1 rounded">report.json</code> to view advanced
+                analytics.</p>
+        </div>
+
+        <div id="dashboardContent" class="hidden animate-in fade-in duration-500">
+            <!-- Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <div class="glass p-6 rounded-2xl">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Security Score</span>
+                        <span id="scoreBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase">Great</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="scoreVal" class="text-4xl font-bold italic">--</span>
+                        <span class="text-slate-500 font-medium">/100</span>
+                    </div>
+                    <div class="mt-4 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div id="scoreBar" class="h-full bg-primary" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="glass p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">High Risk Items</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="criticalCount" class="text-4xl font-bold text-red-500 italic">0</span>
+                        <span class="text-slate-500 font-medium text-sm">Critical findings</span>
+                    </div>
+                    <p class="mt-4 text-[11px] text-slate-400">Total detected vulnerabilities: <span id="totalFindings"
+                            class="text-white font-bold">0</span></p>
+                </div>
+
+                <div class="glass p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">Endpoints Scanned</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="endpointCount" class="text-4xl font-bold text-white italic">0</span>
+                        <span class="text-slate-500 font-medium text-sm">Discoveries</span>
+                    </div>
+                    <p class="mt-4 text-[11px] text-slate-400">Scan duration: <span id="durationVal"
+                            class="text-white font-bold">0s</span></p>
+                </div>
+
+                <div class="glass p-6 rounded-2xl">
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">WAF Status</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="wafDetected" class="text-xl font-bold text-slate-300 italic truncate">None
+                            Detected</span>
+                    </div>
+                    <p class="mt-4 text-[11px] text-slate-400">Confidence: <span id="wafConf"
+                            class="text-white font-bold">--%</span></p>
+                </div>
+            </div>
+
+            <!-- Main Sections -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <!-- Left: Findings Feed -->
+                <div class="xl:col-span-2 space-y-4">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold">Vulnerability Feed</h3>
+                        <div class="flex gap-2">
+                            <span class="text-xs text-slate-500">Filter:</span>
+                            <button class="text-xs font-bold text-primary">All</button>
+                            <button class="text-xs font-bold text-slate-500 hover:text-white">Critical</button>
+                            <button class="text-xs font-bold text-slate-500 hover:text-white">Confirmed</button>
+                        </div>
+                    </div>
+
+                    <div id="findingsList" class="space-y-4">
+                        <!-- Findings will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Right: Analysis Sidebar -->
+                <div class="space-y-6">
+                    <div class="glass p-6 rounded-2xl">
+                        <h3 class="text-sm font-bold mb-4 uppercase tracking-wider">Target Profile</h3>
+                        <div class="space-y-4 text-sm">
+                            <div>
+                                <p class="text-xs text-slate-500 mb-1">Base URL</p>
+                                <p id="targetUrl"
+                                    class="mono text-xs text-primary bg-primary/5 p-2 rounded break-all truncate">--</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500 mb-1">Technologies Detected</p>
+                                <div id="techStack" class="flex flex-wrap gap-2 mt-2">
+                                    <!-- Badges here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass p-6 rounded-2xl">
+                        <h3 class="text-sm font-bold mb-4 uppercase tracking-wider">Audit Log</h3>
+                        <div id="auditLog" class="space-y-3 text-[10px] font-medium mono">
+                            <div class="flex gap-3 text-slate-500">
+                                <span>[SCAN_START]</span>
+                                <span>Session initialized successfully</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const openScanBtn = document.getElementById('openScanBtn');
+        const closeModal = document.getElementById('closeModal');
+        const newScanModal = document.getElementById('newScanModal');
+        const startScanBtn = document.getElementById('startScanBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const apiStatusText = document.getElementById('apiStatus');
+
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const dashboardContent = document.getElementById('dashboardContent');
+
+        openScanBtn.onclick = () => newScanModal.classList.remove('hidden');
+        closeModal.onclick = () => newScanModal.classList.add('hidden');
+
+        const API_URL = 'http://localhost:8000';
+
+        startScanBtn.onclick = async () => {
+            const target = document.getElementById('scanTarget').value;
+            const victim = document.getElementById('scanVictim').value;
+            const attacker = document.getElementById('scanAttacker').value;
+
+            if (!target) return alert('Please enter a target URL');
+
+            startScanBtn.disabled = true;
+            startScanBtn.textContent = 'Launching...';
+            statusIndicator.className = 'w-2 h-2 rounded-full bg-yellow-400 animate-pulse';
+            apiStatusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-400"></span> API: INITIALIZING`;
+
+            try {
+                const res = await fetch(`${API_URL}/scans`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        target: target,
+                        auth: victim,
+                        auth_attacker: attacker
+                    })
+                });
+                const job = await res.json();
+                pollScan(job.scan_id);
+                newScanModal.classList.add('hidden');
+                addAuditLog('INFO', `Scan ${job.scan_id} started on ${target}`);
+            } catch (err) {
+                alert('Could not reach Scanner API. Make sure api.py is running.');
+                startScanBtn.disabled = false;
+                startScanBtn.textContent = 'Execute Security Audit';
+            }
+        };
+
+        async function pollScan(id) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_URL}/scans/${id}`);
+                    const job = await res.json();
+
+                    if (job.status === 'completed') {
+                        clearInterval(interval);
+                        renderDashboard(job.result);
+                        addAuditLog('SUCCESS', `Scan ${id} finished successfully`);
+                        startScanBtn.disabled = false;
+                        startScanBtn.textContent = 'Execute Security Audit';
+                    } else if (job.status === 'failed') {
+                        clearInterval(interval);
+                        alert(`Scan failed: ${job.error}`);
+                        startScanBtn.disabled = false;
+                    }
+                } catch (e) {
+                    clearInterval(interval);
+                }
+            }, 2000);
+        }
+
+        uploadBtn.onclick = () => fileInput.click();
+
+        // Auto-load data.json if it exists (for automated deployments)
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('data.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    renderDashboard(data);
+                    addAuditLog('SUCCESS', 'Latest report auto-loaded from environment');
+                }
+            } catch (e) {
+                // Not found or fetch failed, wait for manual upload
+            }
+        });
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    renderDashboard(data);
+                    addAuditLog('SUCCESS', 'External report loaded manually');
+                } catch (err) {
+                    alert('Invalid JSON file. Please upload a valid report.json');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        function addAuditLog(type, msg) {
+            const log = document.getElementById('auditLog');
+            const entry = document.createElement('div');
+            entry.className = 'flex gap-3 text-slate-500';
+            entry.innerHTML = `<span>[${type}]</span> <span>${msg}</span>`;
+            log.prepend(entry);
+        }
+
+        function renderDashboard(data) {
+            welcomeScreen.classList.add('hidden');
+            dashboardContent.classList.remove('hidden');
+
+            const s = data.summary;
+
+            // Basic Stats
+            document.getElementById('scoreVal').textContent = s.security_score;
+            document.getElementById('scoreBar').style.width = s.security_score + '%';
+            document.getElementById('criticalCount').textContent = s.by_severity.CRITICAL || 0;
+            document.getElementById('totalFindings').textContent = s.total;
+            document.getElementById('endpointCount').textContent = s.endpoints_found;
+            document.getElementById('durationVal').textContent = s.duration + 's';
+            document.getElementById('wafDetected').textContent = s.waf_detected || 'None Detected';
+            document.getElementById('wafConf').textContent = data.waf_confidence ? Math.round(data.waf_confidence) + '%' : '--%';
+            document.getElementById('targetUrl').textContent = data.target;
+
+            const scoreBadge = document.getElementById('scoreBadge');
+            if (s.security_score >= 80) {
+                scoreBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-500/20 text-green-500';
+                scoreBadge.textContent = 'Secure';
+            } else if (s.security_score >= 50) {
+                scoreBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-yellow-500/20 text-yellow-500';
+                scoreBadge.textContent = 'Warning';
+            } else {
+                scoreBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-500';
+                scoreBadge.textContent = 'Critical';
+            }
+
+            // Tech Stack
+            const techContainer = document.getElementById('techStack');
+            techContainer.innerHTML = '';
+            (s.technologies || []).forEach(t => {
+                const span = document.createElement('span');
+                span.className = 'px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-slate-300';
+                span.textContent = t;
+                techContainer.appendChild(span);
+            });
+
+            // Findings List
+            const findingsList = document.getElementById('findingsList');
+            findingsList.innerHTML = '';
+
+            const sevCols = {
+                CRITICAL: 'text-red-500 bg-red-500/10 border-red-500/20',
+                HIGH: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
+                MEDIUM: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20',
+                LOW: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+                INFO: 'text-slate-400 bg-white/5 border-white/10'
+            };
+
+            data.findings.sort((a, b) => {
+                const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+                return order[a.severity] - order[b.severity];
+            }).forEach(f => {
+                const card = document.createElement('div');
+                card.className = 'finding-card glass p-5 rounded-2xl border-l-4 ' + (f.severity === 'CRITICAL' ? 'border-l-red-500' : (f.severity === 'HIGH' ? 'border-l-orange-500' : 'border-l-transparent'));
+
+                const confirmedBadge = f.confirmed ? '<span class="text-[9px] px-1.5 py-0.5 bg-green-500/10 text-green-500 border border-green-500/20 rounded uppercase font-bold">Confirmed</span>' : '';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${sevCols[f.severity]}">${f.severity}</span>
+                            <h4 class="font-bold text-slate-100">${f.title}</h4>
+                            ${confirmedBadge}
+                        </div>
+                        <span class="mono text-[10px] text-slate-500">CVSS ${f.cvss_score}</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="px-2 py-0.5 bg-black/30 rounded text-[10px] font-bold text-slate-400 mono uppercase">${f.method}</span>
+                        <p class="mono text-[10px] text-slate-400 truncate break-all">${f.endpoint}</p>
+                    </div>
+                    <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-4">${f.description}</p>
+                    <div class="pt-4 border-t border-white/5 bg-black/10 -mx-5 -mb-5 px-5 py-3 rounded-b-2xl">
+                        <div class="flex gap-4">
+                            <span class="text-[10px] text-slate-500">OWASP: <span class="text-slate-300">${f.owasp_category}</span></span>
+                            <span class="text-[10px] text-slate-500 ml-auto">${Math.round(f.response_time_ms)}ms</span>
+                        </div>
+                    </div>
+                `;
+                findingsList.appendChild(card);
+            });
+        }
+    </script>
+</body>
+
+</html>

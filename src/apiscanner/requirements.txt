@@ -1,0 +1,15 @@
+# API Security Scanner v2.0 — Dependencies
+# ──────────────────────────────────────────
+# Core (always required)
+requests>=2.28.0
+
+# Async HTTP (recommended — enables native async I/O; scanner falls back to
+# requests+ThreadPoolExecutor if not installed)
+httpx>=0.25.0          # Drop-in async replacement used in engine.py
+aiohttp>=3.9.0         # Alternative async client
+
+# Optional enhancements
+aiofiles>=23.0         # Async file I/O for report writing
+colorama>=0.4.6        # Windows ANSI colour support
+fastapi>=0.100.0       # API Framework
+uvicorn>=0.22.0        # ASGI Server

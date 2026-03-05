@@ -1,0 +1,56 @@
+name: API Security Professional Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target API URL'
+        required: true
+        default: 'https://api.example.com'
+
+jobs:
+  scan-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        cd src/apiscanner
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Security Scan
+      env:
+        VICTIM_AUTH: ${{ secrets.VICTIM_AUTH }}
+        ATTACKER_AUTH: ${{ secrets.ATTACKER_AUTH }}
+      run: |
+        # Use provided input or a default target
+        TARGET="${{ github.event.inputs.target || 'https://api.example.com' }}"
+        
+        # Run the scanner
+        # Note: We use --no-confirm to bypass interactive prompts in CI
+        python src/apiscanner/cli.py \
+          --target "$TARGET" \
+          --auth "$VICTIM_AUTH" \
+          --auth-attacker "$ATTACKER_AUTH" \
+          --output dashboard/data.json \
+          --no-confirm \
+          --quiet
+          
+    - name: Deploy Dashboard to Cloudflare Pages
+      uses: cloudflare/pages-action@v1
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        projectName: 'api-security-scanner-pro'
+        directory: 'dashboard'
+        gitHubToken: ${{ secrets.GITHUB_TOKEN }}
