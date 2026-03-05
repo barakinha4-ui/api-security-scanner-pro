@@ -4,7 +4,8 @@ Uses pydantic-settings to handle environment variables and defaults.
 """
 from __future__ import annotations
 from typing import Optional
-from pydantic_settings import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 class ScannerConfig(BaseSettings):
     # Network

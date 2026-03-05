@@ -12,7 +12,7 @@ from core.engine import AsyncEngine
 from core.models import ScanResult
 from core.plugins import Registry, BasePlugin
 from core.oast import OASTIntegration
-from config import ScannerConfig
+from scanner_config import ScannerConfig
 from core.logger import logger
 from core.ui import C, c
 

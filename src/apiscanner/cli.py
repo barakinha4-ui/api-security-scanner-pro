@@ -10,24 +10,18 @@ import sys
 import time
 from typing import Any, cast
 
-# Allow import from project root
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure the src/apiscanner directory is in the path for internal imports
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
 
-try:
-    from core.engine import AsyncEngine
-    from core.models import Severity
-    from scanner import Scanner, PRESETS
-    from reports.reporter import JSONReporter, MarkdownReporter, HTMLReporter
-    from config import ScannerConfig
-    from core.ui import C, c
-    from core.logger import setup_logger, logger
-except ImportError as e:
-    # Diagnostic print if imports fail
-    print(f"Import error: {e}")
-    class C:
-        RED = GREEN = YELLOW = BLUE = CYAN = BOLD = DIM = RESET = MAGENTA = ""
-    def c(t, col): return t
-    Scanner = ScannerConfig = AsyncEngine = PRESETS = Severity = None  # type: ignore
+from core.engine import AsyncEngine
+from core.models import Severity
+from scanner import Scanner, PRESETS
+from reports.reporter import JSONReporter, MarkdownReporter, HTMLReporter
+from scanner_config import ScannerConfig
+from core.ui import C, c
+from core.logger import setup_logger, logger
 
 BANNER = f"""{C.CYAN}
   ╔══════════════════════════════════════════════════════════════╗
