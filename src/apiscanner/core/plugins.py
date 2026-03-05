@@ -9,11 +9,15 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import os
+import sys
+import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Type, Any, cast
+from pathlib import Path
 
 from core.engine import AsyncEngine
 from core.models import Finding, ScanResult
+from core.oast import OASTIntegration
 
 
 class BasePlugin(ABC):
@@ -36,9 +40,10 @@ class BasePlugin(ABC):
     TAGS:           List[str] = []
     ENABLED:        bool      = True
 
-    def __init__(self, engine: AsyncEngine, config: Optional[dict] = None):
+    def __init__(self, engine: AsyncEngine, config: Optional[dict] = None, oast: Optional[OASTIntegration] = None):
         self.engine  = engine
         self.config  = config or {}
+        self.oast    = oast # Can be None if OAST is disabled
         self._findings: List[Finding] = []
 
     @abstractmethod
@@ -68,6 +73,7 @@ class Registry:
     """Discovers and manages all scan plugins."""
 
     _store: Dict[str, Type[BasePlugin]] = {}
+    _watcher: Any = None
 
     @classmethod
     def register(cls, klass: Type[BasePlugin]) -> Type[BasePlugin]:
@@ -76,35 +82,65 @@ class Registry:
 
     @classmethod
     def discover(cls, modules_dir: Optional[str] = None) -> None:
-        """
-        Auto-discovers all BasePlugin subclasses in the modules/ directory.
-        Imports every .py file and registers classes that subclass BasePlugin.
-        """
+        """Auto-discovers all BasePlugin subclasses in the modules/ directory."""
         if modules_dir is None:
             modules_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "modules",
             )
-        if not os.path.isdir(modules_dir):
+        
+        path_obj = Path(modules_dir)
+        if not path_obj.is_dir():
             return
 
-        for fname in sorted(os.listdir(modules_dir)):
-            if not fname.endswith(".py") or fname.startswith("_"):
+        for p in path_obj.glob("*.py"):
+            if p.name.startswith("_"):
                 continue
-            path = os.path.join(modules_dir, fname)
-            name = fname[:-3]
-            try:
-                spec = importlib.util.spec_from_file_location(f"modules.{name}", path)
-                mod  = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
+            cls._load_plugin(p)
+
+    @classmethod
+    def _load_plugin(cls, path: Path) -> None:
+        """Loads or reloads a plugin from a file path."""
+        name = path.stem
+        try:
+            # Force reload if already in sys.modules
+            module_name = f"apiscanner.modules.{name}"
+            spec = importlib.util.spec_from_file_location(module_name, str(path))
+            if spec is not None and spec.loader is not None:
+                mod = importlib.util.module_from_spec(spec)
+                # Ensure the module is discoverable by the loader
+                sys.modules[module_name] = mod
+                cast(Any, spec.loader).exec_module(mod)
+                
                 for _, obj in inspect.getmembers(mod, inspect.isclass):
                     if (issubclass(obj, BasePlugin)
                             and obj is not BasePlugin
-                            and obj.ENABLED
-                            and obj.NAME not in cls._store):
+                            and obj.ENABLED):
                         cls._store[obj.NAME] = obj
-            except Exception as e:
-                print(f"  [!] Cannot load plugin {name}: {e}")
+                        # logging.info(f"Loaded plugin: {obj.NAME}")
+        except Exception as e:
+            print(f"  [!] Cannot load plugin {name}: {e}")
+
+    @classmethod
+    def enable_hot_reload(cls, modules_dir: str):
+        """Monitors changes in .py files and reloads plugins."""
+        try:
+            from watchdog.observers import Observer
+            from watchdog.events import FileSystemEventHandler
+
+            class PluginReloadHandler(FileSystemEventHandler):
+                def on_modified(self, event):
+                    if not event.is_directory and event.src_path.endswith(".py"):
+                        cls._load_plugin(Path(event.src_path))
+
+            observer = Observer()
+            observer.schedule(PluginReloadHandler(), modules_dir, recursive=False)
+            observer.start()
+            cls._watcher = observer
+        except ImportError:
+            print("  [!] watchdog not installed. Hot-reload disabled.")
+        except Exception as e:
+            print(f"  [!] Failed to start hot-reload: {e}")
 
     @classmethod
     def get(cls, name: str) -> Optional[Type[BasePlugin]]:
@@ -116,9 +152,10 @@ class Registry:
 
     @classmethod
     def instantiate(cls, name: str, engine: AsyncEngine,
-                    config: Optional[dict] = None) -> Optional[BasePlugin]:
+                    config: Optional[dict] = None,
+                    oast: Optional[OASTIntegration] = None) -> Optional[BasePlugin]:
         klass = cls._store.get(name)
-        return klass(engine, config) if klass else None
+        return klass(engine, config, oast) if klass else None
 
     @classmethod
     def instantiate_all(cls, engine: AsyncEngine,

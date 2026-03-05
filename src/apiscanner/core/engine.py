@@ -21,8 +21,10 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
+
+from core.logger import logger
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -127,6 +129,7 @@ class AsyncEngine:
         headers:      Optional[Dict[str, str]] = None,
         proxy:        Optional[str] = None,
         rate_limit:   int   = 0,   # max req/sec per host (0 = unlimited)
+        dry_run:      bool  = False,
     ):
         self.concurrency  = concurrency
         self.timeout      = timeout
@@ -136,6 +139,7 @@ class AsyncEngine:
         self.base_headers = headers or {}
         self.proxy        = proxy
         self.rate_limit   = rate_limit
+        self.dry_run      = dry_run
 
         # Semaphore is created per-loop inside async context
         self._semaphore:  Optional[asyncio.Semaphore] = None
@@ -218,6 +222,11 @@ class AsyncEngine:
             parsed = urlparse(url)
             await self._delay(parsed.netloc)
 
+            if self.dry_run:
+                logger.info(f"DRY-RUN: {method} {url}")
+                return Response(url=url, method=method, status=200, body="[DRY-RUN]")
+
+            logger.debug(f"Request: {method} {url}")
             loop = asyncio.get_event_loop()
             resp = await loop.run_in_executor(
                 self._executor,

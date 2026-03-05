@@ -241,7 +241,10 @@ pre{{background:#0f172a;color:#94a3b8;padding:14px;border-radius:8px;overflow-x:
 .unconf{{color:#d97706;font-size:.72rem;font-weight:600}}
 .toggle{{margin-left:auto;font-size:.8rem}}
 footer{{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border-top:1px solid var(--border);margin-top:24px}}
-@media(max-width:640px){{.header{{padding:24px 16px}}.container{{padding:16px}}}}
+.charts-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px}}
+.chart-container{{background:#fff;border:1px solid var(--border);border-radius:12px;padding:15px;height:260px;display:flex;flex-direction:column;align-items:center}}
+.chart-container h3{{font-size:.75rem;text-transform:uppercase;color:var(--muted);margin-bottom:10px;align-self:flex-start}}
+@media(max-width:640px){{.header{{padding:24px 16px}}.container{{padding:16px}}.charts-grid{{grid-template-columns:1fr}}}}
 </style>
 </head>
 <body>
@@ -266,6 +269,22 @@ footer{{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;borde
     </div>
     {summary_cards}
   </div>
+  
+  <div class="charts-grid">
+    <div class="chart-container">
+      <h3>Findings by Severity</h3>
+      <canvas id="severityChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Findings by Confidence</h3>
+      <canvas id="confidenceChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>OWASP Top 10 Coverage</h3>
+      <canvas id="owaspChart"></canvas>
+    </div>
+  </div>
+
   {"<div class='card' style='margin-bottom:24px'><div class='lbl'>Technologies detected</div><div style='margin-top:8px'>" + tech_badges + "</div></div>" if tech_badges else ""}
   <section>
     <h2>🔍 Findings ({s['total']} total)</h2>
@@ -282,6 +301,7 @@ footer{{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;borde
   </section>
 </div>
 <footer>⚠️ Generated for authorized security testing only &nbsp;·&nbsp; API Security Scanner v2.0</footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.querySelectorAll('.fhdr').forEach(h=>{{
   h.addEventListener('click',()=>{{
@@ -289,6 +309,75 @@ document.querySelectorAll('.fhdr').forEach(h=>{{
     b.classList.toggle('open');
     h.querySelector('.toggle').textContent=b.classList.contains('open')?'▲':'▼';
   }});
+}});
+
+// Chart.js - Severity Doughnut
+const sevCounts = [
+    {s["by_severity"].get("CRITICAL", 0)}, 
+    {s["by_severity"].get("HIGH", 0)}, 
+    {s["by_severity"].get("MEDIUM", 0)}, 
+    {s["by_severity"].get("LOW", 0)}
+];
+new Chart(document.getElementById('severityChart'), {{
+  type: 'doughnut',
+  data: {{
+    labels: ['Critical', 'High', 'Medium', 'Low'],
+    datasets: [{{
+      data: sevCounts,
+      backgroundColor: ['#dc2626', '#ea580c', '#d97706', '#2563eb'],
+      borderWidth: 0
+    }}]
+  }},
+  options: {{ 
+    responsive: true, 
+    maintainAspectRatio: false,
+    plugins: {{ legend: {{ position: 'bottom', labels: {{ boxWidth: 12, font: {{ size: 10 }} }} }} }} 
+  }}
+}});
+
+// Chart.js - Confidence
+const confData = [
+    {result.findings_count_by_status().get("Confirmed", 0)},
+    {result.findings_count_by_status().get("Probable", 0)},
+    {result.findings_count_by_status().get("Unconfirmed", 0)}
+];
+new Chart(document.getElementById('confidenceChart'), {{
+  type: 'pie',
+  data: {{
+    labels: ['Confirmed', 'Probable', 'Unconfirmed'],
+    datasets: [{{
+      data: confData,
+      backgroundColor: ['#16a34a', '#f59e0b', '#94a3b8'],
+      borderWidth: 0
+    }}]
+  }},
+  options: {{ 
+    responsive: true, 
+    maintainAspectRatio: false,
+    plugins: {{ legend: {{ position: 'bottom', labels: {{ boxWidth: 12, font: {{ size: 10 }} }} }} }} 
+  }}
+}});
+
+// Chart.js - OWASP
+const owaspLabels = {list(s["by_owasp"].keys())};
+const owaspData = {list(s["by_owasp"].values())};
+new Chart(document.getElementById('owaspChart'), {{
+  type: 'bar',
+  data: {{
+    labels: owaspLabels.map(l => l.split(':')[0]), // API1, API2...
+    datasets: [{{
+      label: 'Findings',
+      data: owaspData,
+      backgroundColor: '#3b82f6',
+      borderRadius: 4
+    }}]
+  }},
+  options: {{
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {{ y: {{ beginAtZero: true, ticks: {{ stepSize: 1, font: {{ size: 9 }} }} }}, x: {{ ticks: {{ font: {{ size: 9 }} }} }} }},
+    plugins: {{ legend: {{ display: false }} }}
+  }}
 }});
 </script>
 </body></html>"""

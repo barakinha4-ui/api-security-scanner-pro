@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 import time
 import asyncio
-from typing import List
+from typing import List, Optional
 from urllib.parse import quote
 
 from core.plugins import BasePlugin
@@ -30,135 +30,113 @@ class SQLiPlugin(BasePlugin):
                "product_id", "user_id", "order_id", "item"]
 
     async def run(self, target: str, result: ScanResult) -> List[Finding]:
-        self.log("Starting SQL/NoSQL injection scan")
+        self.log("Starting Enterprise-grade SQL/NoSQL injection scan")
         findings: List[Finding] = []
-
         endpoints = result.discovered_endpoints or [target]
 
-        tasks = []
         for url in endpoints:
-            tasks.append(self._test_error_sqli(url))
-            tasks.append(self._test_blind_sqli(url))
-            tasks.append(self._test_post_sqli(url))
-            tasks.append(self._test_nosql(url))
-
-        all_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for r in all_results:
-            if isinstance(r, list):
-                findings.extend(r)
+            # Test key parameters with high precision confirmation
+            for param in self._PARAMS[:8]:
+                finding = await self.detect_with_confirmation(url, param)
+                if finding:
+                    findings.append(finding)
+            
+            # Additional NoSQL and POST tests
+            findings.extend(await self._test_post_sqli(url))
+            findings.extend(await self._test_nosql(url))
 
         for f in findings:
             self.add(f)
             result.add_finding(f)
 
-        self.log(f"Found {len(findings)} SQL/NoSQL issues")
+        self.log(f"Scan complete. Found {len(findings)} confirmed or probable issues")
         return findings
 
-    async def _test_error_sqli(self, url: str) -> List[Finding]:
-        findings: List[Finding] = []
-        payloads = SQLI["error_based"][:8]
+    async def detect_with_confirmation(self, url: str, param: str) -> Optional[Finding]:
+        """
+        Premium 3-Stage Confirmation Logic:
+        1. Error-based (Surface Detection)
+        2. Boolean-based (Logic Validation)
+        3. Time-based (Execution Proof)
+        """
+        evidence_map = {
+            "status_match": False,
+            "pattern_match": False,
+            "time_based": False,
+            "boolean_based": False
+        }
+        confirmation_evidence = []
+        
+        # --- PHASE 1: Error-Based (Surface) ---
+        error_payload = "1' OR '1'='1"
+        test_url = f"{url}?{param}={quote(error_payload, safe='')}"
+        resp_err = await self.engine.get(test_url)
+        
+        if resp_err and self._ERROR_RE.search(resp_err.body):
+            evidence_map["pattern_match"] = True
+            confirmation_evidence.append("SQL Error Pattern Detected in Response")
 
-        # Build a batch of concurrent requests
-        tasks = []
-        combos = []
-        for param in self._PARAMS[:6]:
-            for payload in payloads[:5]:
-                for variant in PayloadMutator.mutate(payload, ["url", "comment"])[:2]:
-                    test_url = f"{url}?{param}={quote(variant, safe='')}"
-                    combos.append((param, payload, variant, test_url))
-                    tasks.append(self.engine.get(test_url))
+        # --- PHASE 2: Boolean-Based (Logic) ---
+        # Compare TRUE vs FALSE conditions
+        payload_true = "1' AND '1'='1"
+        payload_false = "1' AND '1'='2"
+        
+        r_true = await self.engine.get(f"{url}?{param}={quote(payload_true, safe='')}")
+        r_false = await self.engine.get(f"{url}?{param}={quote(payload_false, safe='')}")
+        
+        if r_true and r_false and r_true.status == 200:
+            len_diff = abs(len(r_true.body) - len(r_false.body))
+            if r_true.status != r_false.status or len_diff > 20:
+                evidence_map["boolean_based"] = True
+                confirmation_evidence.append(f"Boolean Logic Confirmed (Diff: {len_diff} bytes in responses)")
 
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        # --- PHASE 3: Time-Based (Execution) ---
+        # Final proof for blind sqli
+        payload_sleep = "1' AND (SELECT 1 FROM (SELECT(SLEEP(2)))a)--"
+        t0 = time.perf_counter()
+        r_sleep = await self.engine.get(f"{url}?{param}={quote(payload_sleep, safe='')}")
+        elapsed = (time.perf_counter() - t0)
+        
+        if elapsed >= 1.8: # Confirmed delay
+            evidence_map["time_based"] = True
+            confirmation_evidence.append(f"Blind Time-Based Execution Confirmed ({elapsed:.1f}s delay)")
 
-        seen_urls: set = set()
-        for (param, original_payload, variant, test_url), resp in zip(combos, responses):
-            if isinstance(resp, Exception) or not resp or url in seen_urls:
-                continue
-            if self._ERROR_RE.search(resp.body):
-                seen_urls.add(url)
-                cvss = CVSS_PROFILES["SQLI"]
-                f = Finding(
-                    vuln_type    = "SQL Injection (Error-Based)",
-                    title        = "Error-Based SQL Injection Detected",
-                    endpoint     = url,
-                    method       = "GET",
-                    parameter    = param,
-                    payload      = original_payload,
-                    response_status = resp.status,
-                    response_body   = resp.body[:800],
-                    response_headers= resp.headers,
-                    response_time_ms= resp.elapsed_ms,
-                    severity        = "CRITICAL",
-                    cvss_score      = cvss["score"],
-                    cvss_vector     = cvss["vector"],
-                    owasp_category  = self.OWASP_CATEGORY,
-                    description     = (
-                        f"SQL error messages were returned when injecting '{original_payload}' "
-                        f"into parameter '{param}'. The server is building SQL queries by "
-                        f"directly concatenating user input, enabling arbitrary database access."
-                    ),
-                    recommendation  = (
-                        "1. Use parameterized queries / prepared statements for ALL database ops.\n"
-                        "2. Apply an ORM (SQLAlchemy, Hibernate, TypeORM) that auto-escapes input.\n"
-                        "3. Validate and sanitize all inputs with strict allowlists.\n"
-                        "4. Disable verbose database errors in production.\n"
-                        "5. Apply least-privilege to the database account."
-                    ),
-                    references      = [
-                        "https://owasp.org/www-community/attacks/SQL_Injection",
-                        "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
-                    ],
-                    confirmed       = True,
-                    module          = self.NAME,
-                    tags            = ["sqli", "error-based"],
-                )
-                findings.append(f)
-                self.log(f"SQLi confirmed: {url} param={param}", "FOUND")
-        return findings
+        # --- FINAL CALCULATION ---
+        f = Finding(
+            vuln_type       = "SQL Injection",
+            endpoint        = url,
+            method          = "GET",
+            parameter       = param,
+            payload         = payload_sleep if evidence_map["time_based"] else error_payload,
+            response_status = resp_err.status if resp_err else 0,
+            severity        = "HIGH", # Default, will upgrade if confirmed
+            cvss_score      = CVSS_PROFILES["SQLI"]["score"],
+            cvss_vector     = CVSS_PROFILES["SQLI"]["vector"],
+            owasp_category  = self.OWASP_CATEGORY,
+            module          = self.NAME,
+            confirmation_evidence = confirmation_evidence
+        )
 
-    async def _test_blind_sqli(self, url: str) -> List[Finding]:
-        """Time-based blind SQL injection — measures response delay delta."""
-        findings: List[Finding] = []
-
-        for param in ["id", "user_id", "product_id"][:2]:
-            baseline_resp = await self.engine.get(f"{url}?{param}=1")
-            if not baseline_resp:
-                continue
-
-            payload = "1' AND SLEEP(3)--"
-            t0 = time.perf_counter()
-            resp = await self.engine.get(f"{url}?{param}={quote(payload, safe='')}")
-            elapsed = (time.perf_counter() - t0) * 1000
-
-            if elapsed > 2800 and resp.ok:
-                cvss = CVSS_PROFILES["SQLI"]
-                f = Finding(
-                    vuln_type       = "SQL Injection (Blind Time-Based)",
-                    title           = "Time-Based Blind SQL Injection Detected",
-                    endpoint        = url,
-                    method          = "GET",
-                    parameter       = param,
-                    payload         = payload,
-                    response_status = resp.status,
-                    response_body   = f"Delay: {elapsed:.0f}ms (SLEEP(3) injected)",
-                    response_time_ms= elapsed,
-                    severity        = "CRITICAL",
-                    cvss_score      = CVSS_PROFILES["SQLI"]["score"],
-                    cvss_vector     = CVSS_PROFILES["SQLI"]["vector"],
-                    owasp_category  = self.OWASP_CATEGORY,
-                    description     = (
-                        f"SLEEP(3) injection caused a {elapsed:.0f}ms delay, confirming "
-                        f"blind SQL injection in parameter '{param}'. No error messages "
-                        f"are visible, but database commands are being executed."
-                    ),
-                    recommendation  = "Use parameterized queries. Even without visible errors, user input is passed unsanitized to the database.",
-                    confirmed       = True,
-                    module          = self.NAME,
-                    tags            = ["sqli", "blind", "time-based"],
-                )
-                findings.append(f)
-                self.log(f"Blind SQLi: {url} delay={elapsed:.0f}ms", "FOUND")
-        return findings
+        confidence = f.calculate_confidence(evidence_map)
+        
+        if confidence >= 0.5:
+            # Upgrade severity based on confidence
+            if confidence >= 0.8:
+                f.severity = "CRITICAL"
+                f.confirmed = True
+                f.title = f"CRITICAL: Confirmed SQL Injection in '{param}'"
+            else:
+                f.severity = "HIGH"
+                f.title = f"Probable SQL Injection in '{param}'"
+            
+            f.description = (
+                f"Automated multi-stage analysis identified a vulnerability in parameter '{param}'. "
+                f"Validation steps: {len(confirmation_evidence)} signals confirmed."
+            )
+            f.recommendation = "Implement parameterized queries (prepared statements) to prevent SQL command injection."
+            return f
+        
+        return None
 
     async def _test_post_sqli(self, url: str) -> List[Finding]:
         """Tests POST body fields for SQL injection."""

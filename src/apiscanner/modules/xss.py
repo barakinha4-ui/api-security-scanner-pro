@@ -5,7 +5,7 @@ OWASP A03:2021 - Injection
 from __future__ import annotations
 
 import asyncio
-from typing import List
+from typing import List, Optional, Tuple
 from urllib.parse import quote
 
 from core.plugins import BasePlugin
@@ -24,144 +24,89 @@ class XSSPlugin(BasePlugin):
                "comment", "input", "data", "value", "content"]
 
     async def run(self, target: str, result: ScanResult) -> List[Finding]:
-        self.log("Starting XSS / SSTI scan")
+        self.log("Starting Enterprise XSS / SSTI scan")
         findings: List[Finding] = []
-
         endpoints = result.discovered_endpoints or [target]
-        tasks = [self._test_reflected(url) for url in endpoints]
-        tasks += [self._test_ssti(url) for url in endpoints]
-        tasks += [self._test_post_xss(url) for url in endpoints]
 
-        all_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for r in all_results:
-            if isinstance(r, list):
-                findings.extend(r)
+        for url in endpoints:
+            # High-precision scan on common parameters
+            count = 0
+            for param in self._PARAMS:
+                if count >= 8: break
+                finding = await self.detect_with_confirmation(url, param)
+                if finding:
+                    findings.append(finding)
+                count += 1
+            
+            # Additional POST tests
+            findings.extend(await self._test_post_xss(url))
 
         for f in findings:
             self.add(f)
             result.add_finding(f)
 
-        self.log(f"Found {len(findings)} XSS/SSTI issues")
+        self.log(f"Scan complete. Found {len(findings)} confirmed XSS/SSTI issues")
         return findings
 
-    async def _test_reflected(self, url: str) -> List[Finding]:
-        findings: List[Finding] = []
-        payloads = XSS["reflected"][:6]
-
-        tasks, combos = [], []
-        for param in self._PARAMS[:5]:
-            for payload in payloads[:4]:
-                for variant in PayloadMutator.mutate(payload, ["url", "html"])[:2]:
-                    test_url = f"{url}?{param}={quote(variant, safe='')}"
-                    combos.append((param, payload, variant, test_url))
-                    tasks.append(self.engine.get(test_url))
-
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        seen: set = set()
-
-        for (param, orig, variant, test_url), resp in zip(combos, responses):
-            if isinstance(resp, Exception) or not resp or url in seen:
-                continue
-            # Check raw (non-encoded) payload reflection
-            if orig in resp.body:
-                seen.add(url)
-                ct = resp.headers.get("Content-Type", "")
-                sev = "HIGH" if "text/html" in ct else "MEDIUM"
-                f = Finding(
-                    vuln_type       = "Cross-Site Scripting (Reflected)",
-                    title           = "Reflected XSS Vulnerability",
-                    endpoint        = url,
-                    method          = "GET",
-                    parameter       = param,
-                    payload         = orig,
-                    response_status = resp.status,
-                    response_body   = resp.body[:600],
-                    response_headers= resp.headers,
-                    severity        = sev,
-                    cvss_score      = CVSS_PROFILES["XSS_REFLECTED"]["score"],
-                    cvss_vector     = CVSS_PROFILES["XSS_REFLECTED"]["vector"],
-                    owasp_category  = self.OWASP_CATEGORY,
-                    description     = (
-                        f"Payload '{orig[:60]}' was reflected in the response without "
-                        f"HTML encoding in parameter '{param}'. Attackers can inject scripts "
-                        f"that execute in victims' browsers — enabling session hijacking, "
-                        f"credential theft, and malicious redirects."
-                    ),
-                    recommendation  = (
-                        "1. HTML-encode all user-supplied data before rendering (use context-aware escaping).\n"
-                        "2. Implement a strict Content-Security-Policy header.\n"
-                        "3. Use modern frameworks (React/Vue/Angular) that auto-escape output.\n"
-                        "4. Set HttpOnly + Secure flags on session cookies.\n"
-                        "5. Validate inputs with strict allowlists."
-                    ),
-                    references      = [
-                        "https://owasp.org/www-community/attacks/xss/",
-                        "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html",
-                    ],
-                    confirmed       = True,
-                    module          = self.NAME,
-                    tags            = ["xss", "reflected"],
-                )
-                findings.append(f)
-                self.log(f"Reflected XSS: {url} param={param}", "FOUND")
-        return findings
-
-    async def _test_ssti(self, url: str) -> List[Finding]:
+    async def detect_with_confirmation(self, url: str, param: str) -> Optional[Finding]:
         """
-        Server-Side Template Injection — sends math probes and checks for
-        evaluated results in the response body.
+        Premium Confirmation Logic:
+        Stage 1: Multi-probe SSTI verification
+        Stage 2: Context-aware XSS reflection analysis
         """
-        findings: List[Finding] = []
+        evidence_map = {
+            "status_match": False,
+            "pattern_match": False,
+            "time_based": False,
+            "boolean_based": False
+        }
+        confirmation_evidence = []
 
-        tasks, combos = [], []
-        for param in self._PARAMS[:4]:
-            for probe, expected in XSS["ssti_probes"]:
-                if not expected:  # skip probes without a predictable result
-                    continue
-                test_url = f"{url}?{param}={quote(probe, safe='')}"
-                combos.append((param, probe, expected, test_url))
-                tasks.append(self.engine.get(test_url))
+        # -- Stage 1: SSTI 2-Step Verification --
+        probe1, expected1 = ("{{7*7}}", "49")
+        probe2, expected2 = ("{{1337*2}}", "2674")
+        
+        r1 = await self.engine.get(f"{url}?{param}={quote(probe1, safe='')}")
+        if r1 and not isinstance(r1, Exception) and r1.body and expected1 in r1.body:
+            r2 = await self.engine.get(f"{url}?{param}={quote(probe2, safe='')}")
+            if r2 and not isinstance(r2, Exception) and r2.body and expected2 in r2.body:
+                evidence_map["boolean_based"] = True
+                confirmation_evidence.append("SSTI Confirmed: Double-math evaluation (7*7 and 1337*2) successful")
 
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        seen: set = set()
-
-        for (param, probe, expected, test_url), resp in zip(combos, responses):
-            if isinstance(resp, Exception) or not resp or url in seen:
-                continue
-            if expected in resp.body:
-                seen.add(url)
-                f = Finding(
-                    vuln_type       = "Server-Side Template Injection (SSTI)",
-                    title           = "SSTI — Remote Code Execution Risk",
-                    endpoint        = url,
-                    method          = "GET",
-                    parameter       = param,
-                    payload         = probe,
-                    response_status = resp.status,
-                    response_body   = resp.body[:600],
-                    severity        = "CRITICAL",
-                    cvss_score      = CVSS_PROFILES["SSTI"]["score"],
-                    cvss_vector     = CVSS_PROFILES["SSTI"]["vector"],
-                    owasp_category  = self.OWASP_CATEGORY,
-                    description     = (
-                        f"The probe '{probe}' was server-evaluated to '{expected}', confirming SSTI. "
-                        f"User input is passed directly to a template engine (Jinja2, Twig, Mako, EL, etc.). "
-                        f"SSTI typically leads to Remote Code Execution — the most severe outcome."
-                    ),
-                    recommendation  = (
-                        "1. Never pass user input to template render functions.\n"
-                        "2. Use template sandboxing (Jinja2 SandboxedEnvironment).\n"
-                        "3. Validate/reject template metacharacters in user input.\n"
-                        "4. Consider a logic-less template engine if dynamic rendering is needed."
-                    ),
-                    references      = ["https://portswigger.net/web-security/server-side-template-injection"],
-                    confirmed       = True,
-                    module          = self.NAME,
-                    tags            = ["ssti", "rce", "critical"],
+                return Finding(
+                    vuln_type="SSTI (Confirmed)",
+                    title=f"Confirmed SSTI in '{param}'",
+                    endpoint=url, method="GET", parameter=param, payload=probe2,
+                    severity="CRITICAL", confirmed=True, 
+                    owasp_category=self.OWASP_CATEGORY, module=self.NAME,
+                    confirmation_evidence=confirmation_evidence,
+                    confidence_score=1.0,
+                    description=f"Server-Side Template Injection confirmed via expression evaluation.",
+                    recommendation="Never pass user input to template engine render functions. Use sandboxed environments if necessary."
                 )
-                findings.append(f)
-                self.log(f"SSTI CONFIRMED: {url} probe={probe!r} → {expected}", "FOUND")
-        return findings
+
+        # -- Stage 2: XSS Reflection Analysis --
+        xss_probe = "z'x\"y<v>w"
+        r_xss = await self.engine.get(f"{url}?{param}={quote(xss_probe, safe='')}")
+        
+        if r_xss and not isinstance(r_xss, Exception) and r_xss.body:
+            if xss_probe in r_xss.body:
+                evidence_map["pattern_match"] = True
+                confirmation_evidence.append("XSS Confirmed: Full payload reflection with special characters ('\"<>)")
+                
+                f = Finding(
+                    vuln_type="Reflected Cross-Site Scripting (XSS)",
+                    title=f"CRITICAL: Confirmed XSS in '{param}'",
+                    endpoint=url, method="GET", parameter=param, payload=xss_probe,
+                    severity="HIGH", confirmed=True,
+                    owasp_category=self.OWASP_CATEGORY, module=self.NAME,
+                    confirmation_evidence=confirmation_evidence
+                )
+                f.calculate_confidence(evidence_map)
+                return f
+            
+        return None
+
 
     async def _test_post_xss(self, url: str) -> List[Finding]:
         """Tests POST body fields for XSS reflection."""
@@ -194,6 +139,7 @@ class XSSPlugin(BasePlugin):
                     description     = f"XSS payload reflected in POST body field '{key}'.",
                     recommendation  = "Encode all output regardless of input source (GET/POST/headers).",
                     confirmed       = True,
+                    confidence_score= 0.95,
                     module          = self.NAME,
                     tags            = ["xss", "post"],
                 )

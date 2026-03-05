@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import re
 import asyncio
-from typing import List, Tuple
+import uuid
+from typing import List, Tuple, Optional
 from urllib.parse import quote
 
 from core.plugins import BasePlugin
@@ -23,58 +24,105 @@ class SSRFPlugin(BasePlugin):
     _CONFIRM_PATTERNS = [re.compile(p, re.IGNORECASE) for p in SSRF["response_patterns"]]
 
     async def run(self, target: str, result: ScanResult) -> List[Finding]:
-        self.log("Starting SSRF scan")
+        self.log("Starting Enterprise-grade SSRF scan")
         findings: List[Finding] = []
         endpoints = result.discovered_endpoints or [target]
 
-        tasks = []
         for url in endpoints:
-            tasks.append(self._test_get_params(url))
-            tasks.append(self._test_post_params(url))
-
-        all_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for r in all_results:
-            if isinstance(r, list):
-                findings.extend(r)
+            # Test high-risk parameters with high-precision confirmation
+            for param in SSRF["url_params"][:6]:
+                finding = await self.detect_with_confirmation(url, param)
+                if finding:
+                    findings.append(finding)
+            
+            # Additional POST SSRF tests
+            findings.extend(await self._test_post_params(url))
 
         for f in findings:
             self.add(f)
             result.add_finding(f)
 
-        self.log(f"Found {len(findings)} SSRF issues")
+        self.log(f"Scan complete. Found {len(findings)} confirmed or probable SSRF issues")
         return findings
 
-    async def _test_get_params(self, url: str) -> List[Finding]:
-        findings: List[Finding] = []
-        payloads = [
-            (SSRF["cloud_metadata"][0],   "AWS Metadata", "CRITICAL"),
-            (SSRF["cloud_metadata"][1],   "AWS IAM Credentials", "CRITICAL"),
-            (SSRF["localhost"][0],         "Localhost Access", "HIGH"),
-            (SSRF["localhost"][1],         "Localhost (hostname)", "HIGH"),
-            (SSRF["internal_services"][0], "Redis Internal", "HIGH"),
-            (SSRF["file_read"][0],         "Local File Read", "HIGH"),
-        ]
+    async def detect_with_confirmation(self, url: str, param: str) -> Optional[Finding]:
+        """
+        Premium 3-Stage Confirmation Logic for SSRF:
+        1. Cloud Metadata Probe (AWS/GCP/Azure)
+        2. Internal Service / Banner Probe
+        3. Logic Variance Detection
+        """
+        evidence_map = {
+            "status_match": False,
+            "pattern_match": False,
+            "time_based": False,
+            "boolean_based": False,
+            "oast_callback": False
+        }
+        confirmation_evidence = []
+        
+        # --- PHASE 1: Cloud Metadata Probe ---
+        metadata_payload = str(SSRF["cloud_metadata"][0])
+        test_url = f"{url}?{param}={quote(metadata_payload, safe='')}"
+        resp_cloud = await self.engine.get(test_url)
+        
+        if resp_cloud and any(pat.search(resp_cloud.body) for pat in self._CONFIRM_PATTERNS):
+            evidence_map["pattern_match"] = True
+            confirmation_evidence.append("Cloud Metadata Signature Found in Response")
 
-        tasks, combos = [], []
-        for param in SSRF["url_params"][:8]:
-            for payload, label, sev in payloads:
-                test_url = f"{url}?{param}={quote(payload, safe='')}"
-                combos.append((param, payload, label, sev, test_url))
-                tasks.append(self.engine.get(test_url))
+        # --- PHASE 2: Loopback / Service Banner Probe ---
+        localhost_payload = "http://localhost:22"
+        r_local = await self.engine.get(f"{url}?{param}={quote(localhost_payload, safe='')}")
+        if r_local and "SSH-" in r_local.body:
+            evidence_map["boolean_based"] = True
+            confirmation_evidence.append("Internal SSH Banner Leak Detected")
+        elif r_local and r_local.status == 200 and len(r_local.body) > 100:
+            evidence_map["status_match"] = True
+            confirmation_evidence.append("Internal Service Access (Localhost) returned HTTP 200")
 
-        responses = await asyncio.gather(*tasks, return_exceptions=True)
-        seen: set = set()
+        # --- PHASE 3: OAST (Out-of-Band) Probe ---
+        if self.oast:
+            domain = await self.oast.get_domain()
+            marker = f"ssrf-{uuid.uuid4().hex[:6]}"
+            oast_url = f"http://{marker}.{domain}/"
+            
+            await self.engine.get(f"{url}?{param}={quote(oast_url, safe='')}")
+            
+            # Wait a few seconds for async callback
+            if await self.oast.verify_interaction(marker, timeout=5):
+                evidence_map["oast_callback"] = True
+                confirmation_evidence.append(f"OAST Callback received for {marker}.{domain}")
 
-        for (param, payload, label, sev, test_url), resp in zip(combos, responses):
-            if isinstance(resp, Exception) or not resp or url in seen:
-                continue
-            confirmed, evidence = self._analyse(resp, payload)
-            if confirmed:
-                seen.add(url)
-                findings.append(self._make_finding(url, param, payload, label, sev,
-                                                    resp, evidence, "GET"))
-                self.log(f"SSRF: {url} param={param} → {label}", "FOUND")
-        return findings
+        # --- FINAL CALCULATION ---
+        f = Finding(
+            vuln_type="Server-Side Request Forgery",
+            endpoint=url,
+            method="GET",
+            parameter=param,
+            payload=metadata_payload if evidence_map["pattern_match"] else localhost_payload,
+            severity="HIGH",
+            owasp_category=self.OWASP_CATEGORY,
+            module=self.NAME,
+            confirmation_evidence=confirmation_evidence
+        )
+
+        confidence = f.calculate_confidence(evidence_map)
+        
+        if confidence >= 0.5:
+            if confidence >= 0.8 or evidence_map["pattern_match"]:
+                f.severity = "CRITICAL"
+                f.confirmed = True
+                f.title = f"CRITICAL: Confirmed SSRF in '{param}'"
+            else:
+                f.severity = "HIGH"
+                f.title = f"Probable SSRF in '{param}'"
+
+            f.cvss_score = CVSS_PROFILES["SSRF_CRITICAL" if f.severity == "CRITICAL" else "SSRF"]["score"]
+            f.description = f"Automated analysis identified SSRF via parameter '{param}'. Validation steps: {len(confirmation_evidence)} signals confirmed."
+            f.recommendation = "Implement a strict allowlist of permitted domains. Disable requests to loopback and internal network ranges."
+            return f
+
+        return None
 
     async def _test_post_params(self, url: str) -> List[Finding]:
         findings: List[Finding] = []
@@ -89,64 +137,15 @@ class SSRFPlugin(BasePlugin):
         for body, resp in zip(bodies, resps):
             if isinstance(resp, Exception) or not resp:
                 continue
-            confirmed, evidence = self._analyse(resp, payload)
-            if confirmed:
+            
+            # Simple signature check for POST
+            if any(pat.search(resp.body) for pat in self._CONFIRM_PATTERNS):
                 key = list(body.keys())[0]
-                findings.append(self._make_finding(url, key, payload,
-                                                    "AWS Metadata via POST", "CRITICAL",
-                                                    resp, evidence, "POST"))
-                self.log(f"POST SSRF: {url} field={key}", "FOUND")
+                findings.append(Finding(
+                    vuln_type="SSRF", title="POST Body SSRF",
+                    endpoint=url, method="POST", parameter=key,
+                    severity="CRITICAL", confirmed=True, module=self.NAME,
+                    confidence_score=0.9
+                ))
                 break
         return findings
-
-    def _analyse(self, resp, payload: str) -> Tuple[bool, str]:
-        if not resp.ok:
-            return False, ""
-        for pat in self._CONFIRM_PATTERNS:
-            m = pat.search(resp.body)
-            if m:
-                return True, m.group(0)
-        # Localhost: any 200 with substantial body is suspicious
-        if ("127.0.0.1" in payload or "localhost" in payload) and resp.status == 200 and len(resp.body) > 30:
-            return True, resp.body[:50]
-        return False, ""
-
-    def _make_finding(self, url, param, payload, label, severity,
-                      resp, evidence, method) -> Finding:
-        return Finding(
-            vuln_type       = "Server-Side Request Forgery (SSRF)",
-            title           = f"SSRF — {label}",
-            endpoint        = url,
-            method          = method,
-            parameter       = param,
-            payload         = payload,
-            response_status = resp.status,
-            response_body   = resp.body[:700],
-            response_headers= resp.headers,
-            response_time_ms= resp.elapsed_ms,
-            severity        = severity,
-            cvss_score      = CVSS_PROFILES["SSRF_CRITICAL" if severity == "CRITICAL" else "SSRF"]["score"],
-            cvss_vector     = CVSS_PROFILES["SSRF_CRITICAL" if severity == "CRITICAL" else "SSRF"]["vector"],
-            owasp_category  = self.OWASP_CATEGORY,
-            description     = (
-                f"SSRF confirmed via parameter '{param}'. The server fetched "
-                f"'{payload}' and returned: '{evidence[:80]}'. "
-                f"Attackers can scan internal networks, steal cloud credentials "
-                f"(IAM/user-data), read local files, and pivot into internal services."
-            ),
-            recommendation  = (
-                "1. Implement strict URL allowlisting — only specific, approved domains.\n"
-                "2. Block requests to RFC 1918 ranges and link-local (169.254.0.0/16).\n"
-                "3. Use a DNS resolver that blocks internal hostnames.\n"
-                "4. Do not follow HTTP redirects from user-supplied URLs.\n"
-                "5. On AWS/GCP/Azure: enforce IMDSv2 (token-required metadata access).\n"
-                "6. Consider a dedicated egress proxy/sandbox for outbound requests."
-            ),
-            references      = [
-                "https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/",
-                "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
-            ],
-            confirmed       = True,
-            module          = self.NAME,
-            tags            = ["ssrf", label.lower().replace(" ", "-")],
-        )

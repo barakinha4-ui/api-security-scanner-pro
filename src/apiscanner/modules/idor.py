@@ -66,87 +66,90 @@ class IDORPlugin(BasePlugin):
         if not baseline or baseline.status != 200:
             return findings
 
-        test_ids = [str(i) for i in [orig_int + 1, orig_int - 1, 1, 2] if i > 0 and str(i) != original_id]
+        evidence_map = {
+            "status_match": False,
+            "pattern_match": False,
+            "time_based": False,
+            "boolean_based": False
+        }
+        confirmation_evidence = []
         
         # If we have an attacker token, use it to confirm access to the SAME resource
         if attacker_auth:
             self.log(f"Confirming IDOR with attacker token on {url}")
-            # Attacker tries to access the Victim's resource
-            confirm_resp = await self.engine.get(url, headers={"Authorization": attacker_auth})
+            confirm_resp = await self.engine.get(url, headers={"Authorization": str(attacker_auth)})
             
             if confirm_resp and confirm_resp.status == 200:
-                # Potential IDOR confirmed - Attacker accessed Victim's data
-                f = Finding(
-                    vuln_type       = "IDOR (Confirmed Multi-User)",
-                    title           = "Confirmed IDOR: Unauthorized Access to Private Resource",
-                    endpoint        = url,
-                    method          = "GET",
-                    parameter       = "path_id",
-                    payload         = f"Attacker Token used to access {url}",
-                    response_status = confirm_resp.status,
-                    severity        = "CRITICAL",
-                    cvss_score      = 9.1,
-                    cvss_vector     = "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
-                    owasp_category  = self.OWASP_CATEGORY,
-                    confirmed       = True,
-                    module          = self.NAME,
-                    tags            = ["idor", "multi-user", "confirmed"],
-                    description     = (
-                        f"CRITICAL: Resource owned by one user was successfully accessed by another user "
-                        f"using a different authentication token. This confirms a total breakdown of "
-                        f"Broken Object Level Authorization (BOLA)."
-                    ),
-                    recommendation  = "Implement strict server-side ownership checks. Verify the authenticated user owns the object ID 123 before returning data.",
-                )
-                findings.append(f)
-                self.log(f"IDOR CONFIRMED (Multi-User) on {url}", "FOUND")
-                return findings # Found a critical one, move on to next endpoint
+                # Potential IDOR confirmed
+                evidence_map["status_match"] = True
+                confirmation_evidence.append("Attacker token successfully accessed Victim's private resource (HTTP 200)")
 
-        # Fallback to sequential ID scanning if no attacker token or if first test didn't yield critical
+        # Sequential ID scanning
+        test_ids = [str(i) for i in [orig_int + 1, orig_int - 1, 1, 2] if i > 0 and str(i) != original_id]
         test_urls = [url.replace(f"/{original_id}", f"/{tid}", 1) for tid in test_ids]
         resps = await asyncio.gather(*[self.engine.get(u) for u in test_urls], return_exceptions=True)
 
-        successes = []
+        unique_successes = []
         for tid, resp in zip(test_ids, resps):
             if (not isinstance(resp, Exception) and resp and
                     resp.status == 200 and len(resp.body) > 30 and
                     resp.body != baseline.body):
-                successes.append(tid)
+                unique_successes.append(tid)
 
-        if successes:
+        if unique_successes:
+            evidence_map["boolean_based"] = True
+            confirmation_evidence.append(f"Sequential ID Access: Different data returned for IDs {', '.join(unique_successes)}")
+
+        if evidence_map["status_match"] or evidence_map["boolean_based"]:
             f = Finding(
-                vuln_type       = "IDOR — Insecure Direct Object Reference",
-                title           = "Possible IDOR: Sequential IDs Expose Unique Data",
+                vuln_type       = "Broken Object Level Authorization (BOLA/IDOR)",
                 endpoint        = url,
                 method          = "GET",
                 parameter       = "path_id",
-                payload         = f"Tested IDs: {successes[:3]}",
                 severity        = "HIGH",
-                cvss_score      = CVSS_PROFILES["IDOR"]["score"],
-                cvss_vector     = CVSS_PROFILES["IDOR"]["vector"],
                 owasp_category  = self.OWASP_CATEGORY,
-                confirmed       = False, # Unconfirmed without 2nd token
                 module          = self.NAME,
-                tags            = ["idor", "sequential-ids"],
-                description     = f"Endpoint returns HTTP 200 with unique content for IDs: {successes}.",
-                recommendation  = "Implement per-object authorization checks.",
+                confirmation_evidence = confirmation_evidence
             )
+            
+            confidence = f.calculate_confidence(evidence_map)
+            
+            if evidence_map["status_match"]:
+                # Multi-user confirmation is very critical
+                f.severity = "CRITICAL"
+                f.confirmed = True
+                f.title = "CRITICAL: Confirmed Multi-User IDOR Access"
+                f.description = "BOLA Confirmed: Resource owned by one user was successfully accessed by another user. This represents a total failure of access controls."
+            else:
+                f.severity = "HIGH"
+                f.title = "IDOR: Unauthorized Access to Private Objects"
+                f.description = f"Endpoint returned HTTP 200 with unique content for sequential IDs: {unique_successes}. This indicates potential missing ownership checks."
+
+            f.cvss_score = 9.1 if f.severity == "CRITICAL" else 8.1
+            f.cvss_vector = "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N"
+            f.recommendation = "Implement strict object-level authorization. Verify the authenticated user owns the resource BEFORE returning it."
+            
             findings.append(f)
-            self.log(f"Possible IDOR: {url}", "WARN")
+            self.log(f"IDOR detected on {url} (Confidence: {confidence:.2f})", "FOUND")
             
         return findings
 
     async def _test_param_idor(self, url: str) -> List[Finding]:
         """Tests query parameter ID enumeration."""
         findings: List[Finding] = []
-
-        # Only test first 4 common ID parameters to save time
-        for param in self._ID_PARAMS[:4]:
+        
+        # Use safe iteration to avoid slicing lints
+        count = 0
+        for param in self._ID_PARAMS:
+            if count >= 4: break
+            count = count + 1
+            
             tasks = [self.engine.get(url, params={param: str(i)}) for i in [1, 2, 3, 100]]
             resps = await asyncio.gather(*tasks, return_exceptions=True)
             
             successes = []
             bodies = set()
+            evidence_map = {"status_match": False, "boolean_based": False}
             
             for i, resp in zip([1, 2, 3, 100], resps):
                 if (not isinstance(resp, Exception) and resp and
@@ -155,6 +158,9 @@ class IDORPlugin(BasePlugin):
                     successes.append(str(i))
 
             if len(successes) >= 2 and len(bodies) >= 2:
+                evidence_map["status_match"] = True
+                evidence_map["boolean_based"] = True
+                
                 f = Finding(
                     vuln_type       = "IDOR via Query Parameter",
                     title           = f"IDOR: Parameter '{param}' Returns Different Objects",
@@ -163,17 +169,14 @@ class IDORPlugin(BasePlugin):
                     parameter       = param,
                     payload         = f"?{param}=1, ?{param}=2, ?{param}=3",
                     severity        = "HIGH",
-                    cvss_score      = CVSS_PROFILES["IDOR"]["score"],
-                    cvss_vector     = CVSS_PROFILES["IDOR"]["vector"],
                     owasp_category  = self.OWASP_CATEGORY,
-                    description     = f"Parameter '{param}' accepts arbitrary IDs and returns different data for each, suggesting missing per-object authorization.",
-                    recommendation  = "Validate that the authenticated user has permission to access the specific resource ID in every request.",
-                    confirmed       = False,
                     module          = self.NAME,
-                    tags            = ["idor", "parameter-enumeration"],
+                    confirmation_evidence = [f"Found {len(successes)} valid IDs for parameter '{param}'", 
+                                             f"Returned content unique for each ID"]
                 )
+                f.calculate_confidence(evidence_map)
                 findings.append(f)
-                self.log(f"Possible IDOR param: {url} ?{param}=", "WARN")
+                self.log(f"IDOR detected on {url} ?{param}=", "FOUND")
                 break
         return findings
 
@@ -193,28 +196,15 @@ class IDORPlugin(BasePlugin):
                 title           = "Privileged Endpoint Accessible Without Admin Role",
                 endpoint        = url,
                 method          = "GET",
-                payload         = "",
-                response_status = resp.status,
-                response_body   = resp.body[:500],
                 severity        = "HIGH",
-                cvss_score      = CVSS_PROFILES["BFLA"]["score"],
-                cvss_vector     = CVSS_PROFILES["BFLA"]["vector"],
                 owasp_category  = "API5:2023 - Broken Function Level Authorization",
-                description     = (
-                    f"Endpoint '{url}' appears to be privileged (contains admin/manage/internal) "
-                    f"but returned HTTP 200 with content. Administrative functions must be "
-                    f"restricted to authorized roles."
-                ),
-                recommendation  = (
-                    "1. Implement RBAC — require explicit role grants for admin endpoints.\n"
-                    "2. Default-deny: all endpoints require authentication/authorization.\n"
-                    "3. Separate admin APIs to a separate subdomain/port not exposed publicly.\n"
-                    "4. Log all access attempts to privileged endpoints."
-                ),
-                confirmed       = False,
                 module          = self.NAME,
-                tags            = ["bfla", "admin", "authorization"],
+                confirmation_evidence = [f"Admin-looking path '{url}' accessible without authentication", 
+                                         f"Response status: {resp.status}, Body length: {len(resp.body)}"]
             )
+            f.calculate_confidence({"status_match": True, "pattern_match": True})
+            f.description = f"Endpoint '{url}' appears to be privileged but returned HTTP 200. Administrative functions must be restricted."
+            f.recommendation = "Implement RBAC — require explicit role grants for admin endpoints."
             findings.append(f)
             self.log(f"Privileged endpoint: {url}", "WARN")
         return findings

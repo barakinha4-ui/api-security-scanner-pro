@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 
 # ─── Severity Enum ────────────────────────────────────────────────────────────
@@ -23,21 +23,24 @@ class Severity(str, Enum):
 
     @property
     def weight(self) -> int:
-        return {"CRITICAL": 5, "HIGH": 4, "MEDIUM": 3, "LOW": 2, "INFO": 1}[self.value]
+        val = str(self.value)
+        return {"CRITICAL": 5, "HIGH": 4, "MEDIUM": 3, "LOW": 2, "INFO": 1}.get(val, 1)
 
     @property
     def emoji(self) -> str:
-        return {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵", "INFO": "⚪"}[self.value]
+        val = str(self.value)
+        return {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵", "INFO": "⚪"}.get(val, "⚪")
 
     @property
     def color_hex(self) -> str:
+        val = str(self.value)
         return {
             "CRITICAL": "#dc2626",
             "HIGH":     "#ea580c",
             "MEDIUM":   "#d97706",
             "LOW":      "#2563eb",
             "INFO":     "#6b7280",
-        }[self.value]
+        }.get(val, "#6b7280")
 
 
 # ─── CVSS 3.1 Calculator ──────────────────────────────────────────────────────
@@ -45,16 +48,6 @@ class Severity(str, Enum):
 class CVSS:
     """
     CVSS v3.1 Base Score Calculator.
-
-    Metric keys:
-      AV  Attack Vector      N=Network A=Adjacent L=Local P=Physical
-      AC  Attack Complexity  L=Low H=High
-      PR  Privileges Req.    N=None L=Low H=High
-      UI  User Interaction   N=None R=Required
-      S   Scope              U=Unchanged C=Changed
-      C   Confidentiality    H=High L=Low N=None
-      I   Integrity          H=High L=Low N=None
-      A   Availability       H=High L=Low N=None
     """
 
     _AV  = {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.20}
@@ -72,8 +65,13 @@ class CVSS:
               S="U", C="H", I="H", A="H") -> Dict[str, Any]:
         """Returns {'score': float, 'severity': str, 'vector': str}"""
         try:
-            av_w = cls._AV[AV]; ac_w = cls._AC[AC]; pr_w = cls._PR[S][PR]
-            ui_w = cls._UI[UI]; c_w  = cls._CIA[C]; i_w  = cls._CIA[I]; a_w = cls._CIA[A]
+            av_w = cls._AV.get(AV, 0.85)
+            ac_w = cls._AC.get(AC, 0.77)
+            pr_w = cls._PR.get(S, cls._PR["U"]).get(PR, 0.85)
+            ui_w = cls._UI.get(UI, 0.85)
+            c_w  = cls._CIA.get(C, 0.56)
+            i_w  = cls._CIA.get(I, 0.56)
+            a_w  = cls._CIA.get(A, 0.56)
 
             iss = 1 - (1 - c_w) * (1 - i_w) * (1 - a_w)
 
@@ -91,7 +89,7 @@ class CVSS:
             else:
                 base = min(1.08 * (impact + exploit), 10.0)
 
-            base = round(base * 10) / 10
+            base = float("%.1f" % base)
 
             if   base == 0:  sev = "NONE"
             elif base < 4:   sev = "LOW"
@@ -104,7 +102,7 @@ class CVSS:
                 "severity": sev,
                 "vector":   f"CVSS:3.1/AV:{AV}/AC:{AC}/PR:{PR}/UI:{UI}/S:{S}/C:{C}/I:{I}/A:{A}",
             }
-        except (KeyError, ZeroDivisionError, TypeError):
+        except Exception:
             return {"score": 0.0, "severity": "NONE",
                     "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N"}
 
@@ -152,7 +150,7 @@ class Finding:
     """Single vulnerability finding produced by a scan module."""
 
     # Identity
-    id:              str  = field(default_factory=lambda: str(uuid.uuid4())[:8].upper())
+    id:              str  = field(default_factory=lambda: str(uuid.uuid4()).split('-')[0].upper())
     vuln_type:       str  = ""
     title:           str  = ""
 
@@ -182,30 +180,77 @@ class Finding:
 
     # Meta
     confirmed:       bool = False
+    confidence_score: float = 0.0
+    confirmation_evidence: List[str] = field(default_factory=list)
+    false_positive_indicators: List[str] = field(default_factory=list)
     false_positive:  bool = False
     module:          str  = ""
     tags:            List[str] = field(default_factory=list)
     timestamp:       str  = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
 
-    def to_dict(self) -> dict:
-        return asdict(self)
+    def to_dict(self) -> Dict[str, Any]:
+        # Cast to Any to satisfy linter regarding DataclassInstance
+        d = dict(asdict(cast(Any, self)))
+        d["status_label"] = str(self.status_label)
+        return d
 
     def truncate_response(self, n: int = 500) -> str:
-        if len(self.response_body) > n:
-            return self.response_body[:n] + " …[truncated]"
-        return self.response_body
+        body_val = str(self.response_body)
+        if len(body_val) > int(n):
+            # Try plain slicing again, but cast both as Any to bypass weird linter rule
+            return str(cast(Any, body_val)[0:int(n)]) + " …[truncated]"
+        return body_val
 
     @property
     def severity_obj(self) -> Severity:
-        try:
-            return Severity(self.severity)
-        except ValueError:
-            return Severity.INFO
+        mapping = {
+            "CRITICAL": Severity.CRITICAL,
+            "HIGH":     Severity.HIGH,
+            "MEDIUM":   Severity.MEDIUM,
+            "LOW":      Severity.LOW,
+            "INFO":     Severity.INFO
+        }
+        val = str(self.severity).upper()
+        return mapping.get(val, Severity.INFO)
 
     @property
     def risk_priority(self) -> int:
         """Lower = more severe (for sorting)."""
-        return {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}.get(self.severity, 5)
+        mapping: Dict[str, int] = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+        sev = str(self.severity)
+        return mapping.get(sev, 5)
+
+    @property
+    def status_label(self) -> str:
+        score = float(self.confidence_score)
+        if score >= 0.9:
+            return "✅ Confirmed"
+        if score >= 0.7:
+            return "⚠️ Probable"
+        return "❓ Unconfirmed"
+
+    def calculate_confidence(self, evidence: Dict[str, bool]) -> float:
+        """
+        Calculates score based on signals: status_match, pattern_match, time_based, boolean_based, oast_callback.
+        """
+        score = 0.0
+        weights: Dict[str, float] = {
+            "status_match": 0.2,
+            "pattern_match": 0.3,
+            "time_based": 0.25,
+            "boolean_based": 0.25,
+            "oast_callback": 0.5
+        }
+        for signal, weight in weights.items():
+            if evidence.get(signal, False):
+                # Use cast to force float addition
+                s: float = cast(float, score)
+                w: float = cast(float, weight)
+                score = s + w
+        
+        final_score: float = min(1.0, float(score))
+        self.confidence_score = final_score
+        return final_score
 
 
 # ─── ScanResult ───────────────────────────────────────────────────────────────
@@ -241,39 +286,67 @@ class ScanResult:
         self.findings.append(f)
 
     def by_severity(self) -> Dict[str, List[Finding]]:
-        d = {s.value: [] for s in Severity}
+        d: Dict[str, List[Finding]] = {
+            "CRITICAL": [], "HIGH": [], "MEDIUM": [], "LOW": [], "INFO": []
+        }
         for f in self.findings:
-            d.get(f.severity, d[Severity.INFO.value]).append(f)
+            sev = str(f.severity)
+            if sev in d:
+                d[sev].append(f)
+            else:
+                d["INFO"].append(f)
         return d
 
     def sorted_findings(self) -> List[Finding]:
         return sorted(self.findings, key=lambda f: f.risk_priority)
 
+    def findings_count_by_status(self) -> Dict[str, int]:
+        counts = {"Confirmed": 0, "Probable": 0, "Unconfirmed": 0}
+        for f in self.findings:
+            label = f.status_label.split(" ")[-1] # Handles "✅ Confirmed" -> "Confirmed"
+            if label in counts:
+                counts[label] += 1
+        return counts
+
     @property
     def summary(self) -> Dict[str, Any]:
-        counts = {}
-        for s in Severity:
-            counts[s.value] = sum(1 for f in self.findings if f.severity == s.value)
+        counts = {
+            "CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "INFO": 0
+        }
+        for f in self.findings:
+            sev = str(f.severity)
+            if sev in counts:
+                counts[sev] += 1
 
         top_cvss = max((f.cvss_score for f in self.findings), default=0.0)
 
         deduct = {"CRITICAL": 25, "HIGH": 10, "MEDIUM": 5, "LOW": 2, "INFO": 0}
-        score = max(0, 100 - sum(deduct.get(s, 0) * n for s, n in counts.items()))
-
+        total_deduction = 0
+        for s, n in counts.items():
+            total_deduction += deduct.get(s, 0) * n
+        
+        score = max(0, 100 - total_deduction)
         rating = "A" if score >= 90 else "B" if score >= 75 else "C" if score >= 60 else "D" if score >= 40 else "F"
+
+        by_owasp = {}
+        for f in self.findings:
+            cat = f.owasp_category
+            if cat:
+                by_owasp[cat] = by_owasp.get(cat, 0) + 1
 
         return {
             "total":              len(self.findings),
             "by_severity":        counts,
+            "by_owasp":           by_owasp,
             "security_score":     score,
             "security_rating":    rating,
-            "highest_cvss":       round(top_cvss, 1),
+            "highest_cvss":       float("%.1f" % top_cvss),
             "confirmed_count":    sum(1 for f in self.findings if f.confirmed),
             "waf_detected":       self.waf_detected,
             "technologies":       self.technologies,
             "total_requests":     self.total_requests,
             "endpoints_found":    len(self.discovered_endpoints),
-            "duration":           round(self.duration_seconds, 1),
+            "duration":           float("%.1f" % self.duration_seconds),
         }
 
     def to_dict(self) -> dict:

@@ -35,6 +35,7 @@ class ScanRequest(BaseModel):
     threads: int = 20
 
 async def run_scan_task(scan_id: str, req: ScanRequest):
+    print(f"DEBUG: Starting scan task {scan_id} for {req.target}")
     scans[scan_id]["status"] = "running"
     
     headers = {}
@@ -51,9 +52,11 @@ async def run_scan_task(scan_id: str, req: ScanRequest):
         attacker_val = req.auth_attacker if " " in req.auth_attacker else f"Bearer {req.auth_attacker}"
 
     config = {
-        "auth_attacker": attacker_val
+        "auth_attacker": attacker_val,
+        "verbose": True
     }
 
+    print(f"DEBUG: Instantiating Scanner for {req.target}")
     scanner = Scanner(
         target=req.target,
         engine=engine,
@@ -62,11 +65,14 @@ async def run_scan_task(scan_id: str, req: ScanRequest):
     )
 
     try:
+        print(f"DEBUG: Running Scanner...")
         async with engine:
             result = await scanner.run()
+            print(f"DEBUG: Scan {scan_id} completed with {len(result.findings)} findings")
             scans[scan_id]["status"] = "completed"
             scans[scan_id]["result"] = result.to_dict()
     except Exception as e:
+        print(f"DEBUG: Scan {scan_id} failed: {e}")
         scans[scan_id]["status"] = "failed"
         scans[scan_id]["error"] = str(e)
 
