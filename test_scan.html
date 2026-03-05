@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Security Report — https://vampi-api.herokuapp.com/v1</title>
+<style>
+:root{--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--primary:#1e40af}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.header{background:linear-gradient(135deg,#1e3a8a,#1e40af 50%,#3b82f6);color:#fff;padding:40px 48px}
+.header h1{font-size:2rem;font-weight:700;margin-bottom:8px}
+.header .meta{opacity:.85;font-size:.875rem;display:flex;gap:20px;flex-wrap:wrap;margin-top:8px}
+.container{max-width:1300px;margin:0 auto;padding:32px 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:28px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.card .lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px}
+.card .val{font-size:1.9rem;font-weight:700}
+.score-card{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff}
+.score-card .lbl{color:rgba(255,255,255,.7)}
+.score-bar{background:rgba(255,255,255,.2);border-radius:999px;height:8px;margin-top:10px;overflow:hidden}
+.score-fill{height:100%;border-radius:999px;background:#fff}
+section{margin-bottom:32px}
+section h2{font-size:1.2rem;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+.finding{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.fhdr{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none}
+.fhdr:hover{filter:brightness(.97)}
+.badge{padding:2px 9px;border-radius:999px;font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.fbody{padding:20px;border-top:1px solid var(--border);display:none}
+.fbody.open{display:block}
+.ftitle{font-weight:600;flex:1;font-size:.95rem}
+.cvss-tag{background:#f1f5f9;color:var(--muted);padding:2px 7px;border-radius:6px;font-size:.72rem;font-family:monospace}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{text-align:left;padding:7px 12px;background:#f1f5f9;font-weight:600;font-size:.7rem;text-transform:uppercase;color:var(--muted)}
+td{padding:7px 12px;border-top:1px solid var(--border);vertical-align:top}
+td:first-child{font-weight:500;color:var(--muted);width:130px;white-space:nowrap}
+pre{background:#0f172a;color:#94a3b8;padding:14px;border-radius:8px;overflow-x:auto;font-size:.78rem;margin-top:10px;white-space:pre-wrap;word-break:break-all}
+.rec{background:#f0fdf4;border-left:3px solid #16a34a;padding:12px 15px;border-radius:0 8px 8px 0;font-size:.85rem;margin-top:10px}
+.desc{font-size:.875rem;color:var(--muted);line-height:1.65;margin-bottom:10px}
+.waf-banner{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:22px;font-size:.875rem}
+.tech{background:#dbeafe;color:#1d4ed8;margin:2px}
+.conf{color:#16a34a;font-size:.72rem;font-weight:600}
+.unconf{color:#d97706;font-size:.72rem;font-weight:600}
+.toggle{margin-left:auto;font-size:.8rem}
+footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border-top:1px solid var(--border);margin-top:24px}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:30px}
+.chart-container{background:#fff;border:1px solid var(--border);border-radius:12px;padding:15px;height:260px;display:flex;flex-direction:column;align-items:center}
+.chart-container h3{font-size:.75rem;text-transform:uppercase;color:var(--muted);margin-bottom:10px;align-self:flex-start}
+@media(max-width:640px){.header{padding:24px 16px}.container{padding:16px}.charts-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🔐 API Security Audit Report</h1>
+  <div class="meta">
+    <span>🎯 <strong>https://vampi-api.herokuapp.com/v1</strong></span>
+    <span>📅 2026-03-05 14:18:15 UTC</span>
+    <span>⏱ 0.0s</span>
+    <span>📡 126 requests</span>
+    <span>🔌 v2.0</span>
+  </div>
+</div>
+<div class="container">
+  
+  <div class="grid">
+    <div class="card score-card">
+      <div class="lbl">Security Score</div>
+      <div class="val">44/100</div>
+      <div class="score-bar"><div class="score-fill" style="width:44%"></div></div>
+      <div style="margin-top:7px;font-size:.8rem;opacity:.8">Rating: D</div>
+    </div>
+    <div class="card" style="border-top:3px solid #dc2626"><div class="lbl">🔴 CRITICAL</div><div class="val" style="color:#dc2626">0</div></div><div class="card" style="border-top:3px solid #ea580c"><div class="lbl">🟠 HIGH</div><div class="val" style="color:#ea580c">0</div></div><div class="card" style="border-top:3px solid #d97706"><div class="lbl">🟡 MEDIUM</div><div class="val" style="color:#d97706">8</div></div><div class="card" style="border-top:3px solid #2563eb"><div class="lbl">🔵 LOW</div><div class="val" style="color:#2563eb">8</div></div><div class="card"><div class="lbl">Highest CVSS</div><div class="val">7.5</div></div><div class="card"><div class="lbl">Endpoints Found</div><div class="val">0</div></div>
+  </div>
+  
+  <div class="charts-grid">
+    <div class="chart-container">
+      <h3>Findings by Severity</h3>
+      <canvas id="severityChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Findings by Confidence</h3>
+      <canvas id="confidenceChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>OWASP Top 10 Coverage</h3>
+      <canvas id="owaspChart"></canvas>
+    </div>
+  </div>
+
+  
+  <section>
+    <h2>🔍 Findings (16 total)</h2>
+    <div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Security Header Missing: Strict-Transport-Security</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>62EA9D64</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Strict-Transport-Security</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Strict-Transport-Security&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Strict-Transport-Security&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Security Header Missing: Content-Security-Policy</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>A7CC05CA</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Content-Security-Policy</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Content-Security-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Content-Security-Policy&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Content-Security-Policy: default-src &#x27;self&#x27;`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Security Header Missing: X-Frame-Options</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>6C91C81F</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: X-Frame-Options</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;X-Frame-Options&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;X-Frame-Options&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `X-Frame-Options: DENY`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Rate Limiting Missing — Endpoint Open to Abuse</span>
+    <span class="cvss-tag">CVSS 7.5</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>4975832F</code></td></tr>
+      <tr><td>Type</td><td>No Rate Limiting on API Endpoint</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API4:2023 - Unrestricted Resource Consumption</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>No rate limiting detected — endpoint accepts unlimited rapid requests, enabling DoS, scraping, and brute force.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>15 rapid requests, no throttling</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>All 15 returned {404}. No 429.</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Implement rate limiting (100 req/min per IP baseline).</li><li>Return 429 with Retry-After header when exceeded.</li><li>Add X-RateLimit-Limit / X-RateLimit-Remaining headers.</li><li>Use a reverse proxy (nginx, Cloudflare) for global limits.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>rate-limit</code> <code>dos</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Security Header Missing: Strict-Transport-Security</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>62EA9D64</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Strict-Transport-Security</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Strict-Transport-Security&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Strict-Transport-Security&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Security Header Missing: Content-Security-Policy</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>A7CC05CA</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Content-Security-Policy</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Content-Security-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Content-Security-Policy&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Content-Security-Policy: default-src &#x27;self&#x27;`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Security Header Missing: X-Frame-Options</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>6C91C81F</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: X-Frame-Options</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;X-Frame-Options&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;X-Frame-Options&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `X-Frame-Options: DENY`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fffbeb">
+    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
+    <span class="ftitle">Rate Limiting Missing — Endpoint Open to Abuse</span>
+    <span class="cvss-tag">CVSS 7.5</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>4975832F</code></td></tr>
+      <tr><td>Type</td><td>No Rate Limiting on API Endpoint</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API4:2023 - Unrestricted Resource Consumption</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>No rate limiting detected — endpoint accepts unlimited rapid requests, enabling DoS, scraping, and brute force.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>15 rapid requests, no throttling</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>All 15 returned {404}. No 429.</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Implement rate limiting (100 req/min per IP baseline).</li><li>Return 429 with Retry-After header when exceeded.</li><li>Add X-RateLimit-Limit / X-RateLimit-Remaining headers.</li><li>Use a reverse proxy (nginx, Cloudflare) for global limits.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>rate-limit</code> <code>dos</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Security Header Missing: X-Content-Type-Options</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>AC869CF1</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: X-Content-Type-Options</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;X-Content-Type-Options&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;X-Content-Type-Options&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `X-Content-Type-Options: nosniff`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Security Header Missing: Referrer-Policy</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>A97B8997</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Referrer-Policy</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Referrer-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Referrer-Policy&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Referrer-Policy: strict-origin-when-cross-origin`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Security Header Missing: Permissions-Policy</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>34D90DD7</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Permissions-Policy</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Permissions-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Permissions-Policy&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Permissions-Policy: camera=(), microphone=(), geolocation=()`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Tech Stack Revealed by &#x27;Server&#x27; Header</span>
+    <span class="cvss-tag">CVSS 3.1</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>B54E7BB8</code></td></tr>
+      <tr><td>Type</td><td>Server Fingerprinting Header: Server</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Header &#x27;Server: heroku-router&#x27; reveals technology details, aiding targeted attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Server: heroku-router</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Remove or replace &#x27;Server&#x27; with a generic value (e.g., Server: webserver).</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>fingerprinting</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Security Header Missing: X-Content-Type-Options</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>AC869CF1</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: X-Content-Type-Options</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;X-Content-Type-Options&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;X-Content-Type-Options&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `X-Content-Type-Options: nosniff`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Security Header Missing: Referrer-Policy</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>A97B8997</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Referrer-Policy</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Referrer-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Referrer-Policy&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Referrer-Policy: strict-origin-when-cross-origin`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Security Header Missing: Permissions-Policy</span>
+    <span class="cvss-tag">CVSS 5.3</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>34D90DD7</code></td></tr>
+      <tr><td>Type</td><td>Missing Security Header: Permissions-Policy</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Permissions-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Permissions-Policy&#x27; header</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Permissions-Policy: camera=(), microphone=(), geolocation=()`</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#eff6ff">
+    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
+    <span class="ftitle">Tech Stack Revealed by &#x27;Server&#x27; Header</span>
+    <span class="cvss-tag">CVSS 3.1</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>B54E7BB8</code></td></tr>
+      <tr><td>Type</td><td>Server Fingerprinting Header: Server</td></tr>
+      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Header &#x27;Server: heroku-router&#x27; reveals technology details, aiding targeted attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Server: heroku-router</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Remove or replace &#x27;Server&#x27; with a generic value (e.g., Server: webserver).</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>fingerprinting</code></p>
+  </div>
+</div>
+  </section>
+  <section>
+    <h2>📚 References</h2>
+    <ul style="padding-left:20px;font-size:.875rem;line-height:2.2">
+      <li><a href="https://owasp.org/API-Security/">OWASP API Security Top 10 (2023)</a></li>
+      <li><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10 (2021)</a></li>
+      <li><a href="https://www.first.org/cvss/v3.1/">CVSS v3.1 Specification</a></li>
+      <li><a href="https://owasp.org/www-project-web-security-testing-guide/">OWASP Testing Guide</a></li>
+    </ul>
+  </section>
+</div>
+<footer>⚠️ Generated for authorized security testing only &nbsp;·&nbsp; API Security Scanner v2.0</footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.querySelectorAll('.fhdr').forEach(h=>{
+  h.addEventListener('click',()=>{
+    const b=h.nextElementSibling;
+    b.classList.toggle('open');
+    h.querySelector('.toggle').textContent=b.classList.contains('open')?'▲':'▼';
+  });
+});
+
+// Chart.js - Severity Doughnut
+const sevCounts = [
+    0, 
+    0, 
+    8, 
+    8
+];
+new Chart(document.getElementById('severityChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Critical', 'High', 'Medium', 'Low'],
+    datasets: [{
+      data: sevCounts,
+      backgroundColor: ['#dc2626', '#ea580c', '#d97706', '#2563eb'],
+      borderWidth: 0
+    }]
+  },
+  options: { 
+    responsive: true, 
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } 
+  }
+});
+
+// Chart.js - Confidence
+const confData = [
+    0,
+    0,
+    16
+];
+new Chart(document.getElementById('confidenceChart'), {
+  type: 'pie',
+  data: {
+    labels: ['Confirmed', 'Probable', 'Unconfirmed'],
+    datasets: [{
+      data: confData,
+      backgroundColor: ['#16a34a', '#f59e0b', '#94a3b8'],
+      borderWidth: 0
+    }]
+  },
+  options: { 
+    responsive: true, 
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } 
+  }
+});
+
+// Chart.js - OWASP
+const owaspLabels = ['API8:2023 - Security Misconfiguration', 'API4:2023 - Unrestricted Resource Consumption'];
+const owaspData = [14, 2];
+new Chart(document.getElementById('owaspChart'), {
+  type: 'bar',
+  data: {
+    labels: owaspLabels.map(l => l.split(':')[0]), // API1, API2...
+    datasets: [{
+      label: 'Findings',
+      data: owaspData,
+      backgroundColor: '#3b82f6',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 9 } } }, x: { ticks: { font: { size: 9 } } } },
+    plugins: { legend: { display: false } }
+  }
+});
+</script>
+</body></html>

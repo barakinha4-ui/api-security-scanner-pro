@@ -139,8 +139,19 @@ async def main_async(args) -> int:
 
     if args.output:
         base, ext = os.path.splitext(args.output)
-        HTMLReporter().generate(result, base + ".html")
-        print(f"  {c('✓', C.GREEN)} Report saved: {base}.html")
+        formats = args.format or ([ext.lstrip('.')] if ext else ['html'])
+        
+        if 'html' in formats or ext == '.html':
+            HTMLReporter().generate(result, base + ".html")
+            print(f"  {c('✓', C.GREEN)} HTML Report saved: {base}.html")
+        
+        if 'json' in formats or ext == '.json':
+            JSONReporter().generate(result, base + ".json")
+            print(f"  {c('✓', C.GREEN)} JSON Report saved: {base}.json")
+            
+        if 'md' in formats or ext == '.md':
+            MarkdownReporter().generate(result, base + ".md")
+            print(f"  {c('✓', C.GREEN)} Markdown Report saved: {base}.md")
 
     s = result.summary
     if s["by_severity"].get("CRITICAL", 0) > 0: return 2
