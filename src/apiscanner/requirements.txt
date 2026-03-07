@@ -9,7 +9,10 @@ httpx>=0.25.0          # Drop-in async replacement used in engine.py
 aiohttp>=3.9.0         # Alternative async client
 
 # Optional enhancements
+fpdf2>=2.7.4           # Professional PDF generation
+cryptography>=42.0.0   # AES-256 Encryption & Security
 aiofiles>=23.0         # Async file I/O for report writing
+python-dotenv>=1.0.0   # Environment variable loading
 colorama>=0.4.6        # Windows ANSI colour support
 fastapi>=0.100.0       # API Framework
 uvicorn>=0.22.0        # ASGI Server

@@ -21,7 +21,7 @@ class BOLAPlugin(BasePlugin):
     async def run(self, target: str, result: ScanResult) -> List[Finding]:
         self.log("Starting BOLA/IDOR analysis")
         findings: List[Finding] = []
-        endpoints = result.discovered_endpoints or [target]
+        endpoints = (result.discovered_endpoints or [target])[:20]
 
         # Targets with potential object IDs in path: /api/v1/user/123 or /api/orders/ABC-123
         bola_targets = [u for u in endpoints if re.search(r'/\d+|/[a-f0-9-]{32,}', u.lower())]
@@ -74,18 +74,26 @@ class BOLAPlugin(BasePlugin):
                     return self._create_finding(url, target_url, "UUID Manipulation")
 
         # 3. Double-Context Test (Most Reliable)
-        # If 'auth_attacker' is in config, we try to access 'obj_id' belonging to User A using User B's token
         attacker_token = self.config.get("auth_attacker")
         if attacker_token:
             headers = {"Authorization": attacker_token}
             res = await self.engine.get(url, headers=headers)
             if res and res.status == 200:
-                # This IS a confirmed BOLA
                 f = self._create_finding(url, url, "Authorization Bypass (Cross-User)")
                 f.confidence_score = 1.0
                 f.confirmed = True
                 f.severity = "HIGH"
                 return f
+
+        # 4. JSON Body BOLA Injection
+        # Often IDs are in the body. We test if changing an ID in POST/PUT works.
+        if "/api/" in url.lower():
+            common_id_fields = ["id", "userId", "user_id", "account_id", "owner_id", "creator_id"]
+            for field in common_id_fields:
+                payload = {field: "1"} # Simple test value
+                res = await self.engine.post(url, json=payload)
+                if res and res.status == 200 and "application/json" in res.content_type:
+                    return self._create_finding(url, url, f"JSON Body Injection ({field})")
 
         return None
 

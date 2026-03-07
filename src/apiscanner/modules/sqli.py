@@ -32,11 +32,14 @@ class SQLiPlugin(BasePlugin):
     async def run(self, target: str, result: ScanResult) -> List[Finding]:
         self.log("Starting Enterprise-grade SQL/NoSQL injection scan")
         findings: List[Finding] = []
-        endpoints = result.discovered_endpoints or [target]
+        all_endpoints = result.discovered_endpoints or [target]
+        # Cap at 15 most interesting endpoints for speed
+        endpoints = all_endpoints[:15]
+        self.log(f"Testing {len(endpoints)} of {len(all_endpoints)} endpoints")
 
         for url in endpoints:
-            # Test key parameters with high precision confirmation
-            for param in self._PARAMS[:8]:
+            # Test key parameters (capped at 5 for speed)
+            for param in self._PARAMS[:5]:
                 finding = await self.detect_with_confirmation(url, param)
                 if finding:
                     findings.append(finding)
@@ -90,16 +93,8 @@ class SQLiPlugin(BasePlugin):
                 evidence_map["boolean_based"] = True
                 confirmation_evidence.append(f"Boolean Logic Confirmed (Diff: {len_diff} bytes in responses)")
 
-        # --- PHASE 3: Time-Based (Execution) ---
-        # Final proof for blind sqli
-        payload_sleep = "1' AND (SELECT 1 FROM (SELECT(SLEEP(2)))a)--"
-        t0 = time.perf_counter()
-        r_sleep = await self.engine.get(f"{url}?{param}={quote(payload_sleep, safe='')}")
-        elapsed = (time.perf_counter() - t0)
-        
-        if elapsed >= 1.8: # Confirmed delay
-            evidence_map["time_based"] = True
-            confirmation_evidence.append(f"Blind Time-Based Execution Confirmed ({elapsed:.1f}s delay)")
+        # --- PHASE 3: Time-Based (skipped — 4s timeout makes this unreliable) ---
+        # evidence_map["time_based"] = False
 
         # --- FINAL CALCULATION ---
         f = Finding(
@@ -107,7 +102,7 @@ class SQLiPlugin(BasePlugin):
             endpoint        = url,
             method          = "GET",
             parameter       = param,
-            payload         = payload_sleep if evidence_map["time_based"] else error_payload,
+            payload         = error_payload,
             response_status = resp_err.status if resp_err else 0,
             severity        = "HIGH", # Default, will upgrade if confirmed
             cvss_score      = CVSS_PROFILES["SQLI"]["score"],

@@ -15,10 +15,16 @@ from core.models import ScanResult, Finding, Severity
 
 # ─── JSON ─────────────────────────────────────────────────────────────────────
 
+from core.crypto import shield
+
 class JSONReporter:
-    def generate(self, result: ScanResult, path: str) -> str:
+    def generate(self, result: ScanResult, path: str, encrypt: bool = False) -> str:
+        data = result.to_dict()
+        if encrypt:
+            data = {"encrypted": True, "payload": shield.encrypt(json.dumps(data, default=str))}
+            
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(result.to_dict(), f, indent=2, ensure_ascii=False, default=str)
+            json.dump(data, f, indent=2, ensure_ascii=False, default=str)
         return path
 
 
@@ -447,3 +453,149 @@ new Chart(document.getElementById('owaspChart'), {{
   </div>
 </div>""")
         return "\n".join(parts)
+
+
+# ─── PDF ──────────────────────────────────────────────────────────────────────
+
+try:
+    from fpdf import FPDF
+except ImportError:
+    FPDF = None
+
+class PDFReporter:
+    def generate(self, result: ScanResult, path: str) -> str:
+        if not FPDF:
+            print("[!] fpdf2 not installed. Skipping PDF report.")
+            return ""
+        
+        pdf = self._build(result)
+        pdf.output(path)
+        return path
+
+    def _build(self, result: ScanResult) -> FPDF:
+        s = result.summary
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # --- Cover Page ---
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 24)
+        pdf.set_text_color(30, 58, 138)  # Deep Blue
+        pdf.cell(0, 60, "API Security Audit Report", ln=True, align='C')
+        
+        pdf.set_font("Helvetica", "", 12)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(0, 10, f"Target: {result.target}", ln=True, align='C')
+        pdf.cell(0, 10, f"Date: {result.start_time[:19].replace('T', ' ')} UTC", ln=True, align='C')
+        pdf.cell(0, 10, f"Scanner Version: v{result.scanner_version}", ln=True, align='C')
+        
+        # Big Score Section
+        pdf.ln(30)
+        pdf.set_fill_color(248, 250, 252)
+        pdf.rect(60, 130, 90, 40, 'F')
+        
+        pdf.set_font("Helvetica", "B", 36)
+        # Choose color by score
+        score = s['security_score']
+        if score >= 75: sc = (22, 163, 74) 
+        elif score >= 50: sc = (217, 119, 6)
+        else: sc = (220, 38, 38)
+        
+        pdf.set_text_color(*sc)
+        pdf.set_xy(60, 140)
+        pdf.cell(90, 15, f"{score}/100", align='C', ln=True)
+        
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(0, 10, f"RATING: {s['security_rating']}", align='C', ln=True)
+
+        # --- Summary Page ---
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.set_text_color(30, 58, 138)
+        pdf.cell(0, 10, "Executive Summary", ln=True)
+        pdf.ln(5)
+        
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(0, 0, 0)
+        
+        # Table Headers
+        pdf.set_fill_color(241, 245, 249)
+        pdf.cell(95, 10, "Metric", border=1, fill=True)
+        pdf.cell(95, 10, "Value", border=1, fill=True, ln=True)
+        
+        # Table Rows
+        pdf.set_font("Helvetica", "", 10)
+        rows = [
+            ["Total Findings", str(s['total'])],
+            ["Confirmed Critical", str(s['by_severity'].get('CRITICAL', 0))],
+            ["Highest CVSS", str(s['highest_cvss'])],
+            ["Endpoints Discovered", str(s['endpoints_found'])],
+            ["WAF Status", s.get('waf_detected') or "None Detected"],
+        ]
+        for r in rows:
+            pdf.cell(95, 10, r[0], border=1)
+            pdf.cell(95, 10, r[1], border=1, ln=True)
+
+        # --- Findings ---
+        pdf.ln(10)
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.set_text_color(30, 58, 138)
+        pdf.cell(0, 10, "Security Findings Breakdown", ln=True)
+        pdf.ln(5)
+
+        by_sev = result.by_severity()
+        for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"):
+            f_list = by_sev.get(sev, [])
+            if not f_list: continue
+            
+            # Severity Section Header
+            pdf.set_font("Helvetica", "B", 12)
+            sev_col = {"CRITICAL": (220, 38, 38), "HIGH": (234, 88, 12), "MEDIUM": (217, 119, 6), "LOW": (37, 99, 235), "INFO": (107, 114, 128)}
+            pdf.set_text_color(*sev_col.get(sev, (0,0,0)))
+            pdf.cell(0, 10, f"{sev} Severity - {len(f_list)} Item(s)", ln=True)
+            pdf.ln(2)
+            
+            for f in f_list:
+                # Page break check
+                if pdf.get_y() > 240: pdf.add_page()
+                
+                # Finding Card
+                pdf.set_fill_color(248, 250, 252)
+                pdf.set_draw_color(200, 200, 200)
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(30, 58, 138)
+                pdf.cell(0, 10, f" [{f.id}] {f.title}", border='LTR', ln=True, fill=True)
+                
+                # Meta
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(71, 85, 105)
+                pdf.cell(0, 8, f" Endpoint: {f.method} {f.endpoint}", border='LR', ln=True)
+                
+                # Small Grid
+                pdf.cell(47.5, 8, f" CVSS Score: {f.cvss_score}", border='LB')
+                pdf.cell(47.5, 8, f" Status: {'Confirmed' if f.confirmed else 'Probable'}", border='B')
+                pdf.cell(95, 8, f" Category: {f.owasp_category}", border='RB', ln=True)
+                
+                # Inner Details
+                pdf.ln(3)
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.cell(0, 6, "Description:", ln=True)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.multi_cell(0, 5, f.description)
+                
+                pdf.ln(2)
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(22, 101, 52) # Greenish
+                pdf.cell(0, 6, "Remediation Strategy:", ln=True)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(30, 41, 59)
+                pdf.multi_cell(0, 5, f.recommendation)
+                
+                pdf.ln(6)
+                pdf.set_draw_color(226, 232, 240)
+                pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+                pdf.ln(4)
+                
+        return pdf

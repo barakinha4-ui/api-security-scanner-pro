@@ -18,7 +18,7 @@ if CURRENT_DIR not in sys.path:
 from core.engine import AsyncEngine
 from core.models import Severity
 from scanner import Scanner, PRESETS
-from reports.reporter import JSONReporter, MarkdownReporter, HTMLReporter
+from reports.reporter import JSONReporter, MarkdownReporter, HTMLReporter, PDFReporter
 from scanner_config import ScannerConfig
 from core.ui import C, c
 from core.logger import setup_logger, logger
@@ -75,6 +75,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--quiet",    "-q", action="store_true", help="Minimal output")
     p.add_argument("--no-confirm",     action="store_true", help="Skip authorization check")
     p.add_argument("--dry-run",        action="store_true", help="Simulate scan without payloads")
+    p.add_argument("--encrypt",        action="store_true", help="Encrypt report data (AES-256)")
+    p.add_argument("--api-key",        metavar="KEY", help="API Key for authorized execution")
+    p.add_argument("--ws-port",        type=int, help="Optional WebSocket port for LIVE findings streaming")
     p.add_argument("--list-plugins",   action="store_true", help="List plugins and exit")
     return p
 
@@ -119,6 +122,22 @@ async def main_async(args) -> int:
         dry_run     = args.dry_run
     )
 
+    ws_clients = set()
+    ws_server = None
+    if args.ws_port:
+        try:
+            import websockets
+            async def ws_handler(websocket):
+                ws_clients.add(websocket)
+                try:
+                    await websocket.wait_closed()
+                finally:
+                    ws_clients.remove(websocket)
+            ws_server = await websockets.serve(ws_handler, "localhost", args.ws_port)
+            print(f"  {c('✓', C.GREEN)} WebSocket server started on ws://localhost:{args.ws_port}")
+        except ImportError:
+            print("  [!] 'websockets' library not installed. Cannot start WS server.")
+
     scanner = Scanner(
         target     = args.target,
         engine     = engine,
@@ -126,7 +145,8 @@ async def main_async(args) -> int:
         plugins    = args.plugins,
         config     = conf,
         on_finding = print_finding_live if not args.quiet else None,
-        dry_run    = args.dry_run
+        dry_run    = args.dry_run,
+        ws_clients = ws_clients
     )
 
     print(f"\n  {c('Starting scan…', C.BOLD)}\n")
@@ -146,12 +166,22 @@ async def main_async(args) -> int:
             print(f"  {c('✓', C.GREEN)} HTML Report saved: {base}.html")
         
         if 'json' in formats or ext == '.json':
-            JSONReporter().generate(result, base + ".json")
-            print(f"  {c('✓', C.GREEN)} JSON Report saved: {base}.json")
+            JSONReporter().generate(result, base + ".json", encrypt=args.encrypt)
+            msg = "Encrypted JSON Report saved" if args.encrypt else "JSON Report saved"
+            print(f"  {c('✓', C.GREEN)} {msg}: {base}.json")
             
         if 'md' in formats or ext == '.md':
             MarkdownReporter().generate(result, base + ".md")
             print(f"  {c('✓', C.GREEN)} Markdown Report saved: {base}.md")
+
+        if 'pdf' in formats or ext == '.pdf':
+            path = PDFReporter().generate(result, base + ".pdf")
+            if path:
+                print(f"  {c('✓', C.GREEN)} PDF Report saved: {base}.pdf")
+
+    if ws_server:
+        ws_server.close()
+        await ws_server.wait_closed()
 
     s = result.summary
     if s["by_severity"].get("CRITICAL", 0) > 0: return 2
@@ -172,6 +202,22 @@ def main():
 
     if not args.target:
         parser.error("--target is required")
+
+    conf = ScannerConfig()
+    if conf.api_key_required:
+        provided_key = args.api_key or os.environ.get("API_KEY") or os.environ.get("SCANNER_API_KEY")
+        if not provided_key:
+            try:
+                import json
+                with open("keys.json", "r") as f:
+                    keys_data = json.load(f)
+                    provided_key = keys_data.get("API_KEY")
+            except Exception:
+                pass
+        
+        if not provided_key:
+            logger.error("Unauthorized execution attempt: Missing API Key.")
+            parser.error("--api-key is required by system policy (via arg, .env, or keys.json)")
 
     if not args.no_confirm:
         ans = input(f"  {C.YELLOW}Confirm authorization to test {args.target}? [y/N]: {C.RESET}")

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>API Security Report — https://vampi-api.herokuapp.com/v1</title>
+<title>API Security Report — https://jsonplaceholder.typicode.com</title>
 <style>
 :root{--bg:#f8fafc;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--primary:#1e40af}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -53,23 +53,23 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
 <div class="header">
   <h1>🔐 API Security Audit Report</h1>
   <div class="meta">
-    <span>🎯 <strong>https://vampi-api.herokuapp.com/v1</strong></span>
-    <span>📅 2026-03-05 14:40:55 UTC</span>
+    <span>🎯 <strong>https://jsonplaceholder.typicode.com</strong></span>
+    <span>📅 2026-03-05 14:47:22 UTC</span>
     <span>⏱ 0.0s</span>
-    <span>📡 280 requests</span>
+    <span>📡 585 requests</span>
     <span>🔌 v2.0</span>
   </div>
 </div>
 <div class="container">
-  
+  <div class="waf-banner">🛡 WAF detected: <strong>Cloudflare</strong> (0% confidence)</div>
   <div class="grid">
     <div class="card score-card">
       <div class="lbl">Security Score</div>
-      <div class="val">44/100</div>
-      <div class="score-bar"><div class="score-fill" style="width:44%"></div></div>
-      <div style="margin-top:7px;font-size:.8rem;opacity:.8">Rating: D</div>
+      <div class="val">0/100</div>
+      <div class="score-bar"><div class="score-fill" style="width:0%"></div></div>
+      <div style="margin-top:7px;font-size:.8rem;opacity:.8">Rating: F</div>
     </div>
-    <div class="card" style="border-top:3px solid #dc2626"><div class="lbl">🔴 CRITICAL</div><div class="val" style="color:#dc2626">0</div></div><div class="card" style="border-top:3px solid #ea580c"><div class="lbl">🟠 HIGH</div><div class="val" style="color:#ea580c">0</div></div><div class="card" style="border-top:3px solid #d97706"><div class="lbl">🟡 MEDIUM</div><div class="val" style="color:#d97706">8</div></div><div class="card" style="border-top:3px solid #2563eb"><div class="lbl">🔵 LOW</div><div class="val" style="color:#2563eb">8</div></div><div class="card"><div class="lbl">Highest CVSS</div><div class="val">7.5</div></div><div class="card"><div class="lbl">Endpoints Found</div><div class="val">0</div></div>
+    <div class="card" style="border-top:3px solid #dc2626"><div class="lbl">🔴 CRITICAL</div><div class="val" style="color:#dc2626">0</div></div><div class="card" style="border-top:3px solid #ea580c"><div class="lbl">🟠 HIGH</div><div class="val" style="color:#ea580c">16</div></div><div class="card" style="border-top:3px solid #d97706"><div class="lbl">🟡 MEDIUM</div><div class="val" style="color:#d97706">6</div></div><div class="card" style="border-top:3px solid #2563eb"><div class="lbl">🔵 LOW</div><div class="val" style="color:#2563eb">6</div></div><div class="card"><div class="lbl">Highest CVSS</div><div class="val">10.0</div></div><div class="card"><div class="lbl">Endpoints Found</div><div class="val">4</div></div>
   </div>
   
   <div class="charts-grid">
@@ -87,10 +87,642 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
     </div>
   </div>
 
-  
+  <div class='card' style='margin-bottom:24px'><div class='lbl'>Technologies detected</div><div style='margin-top:8px'><span class="badge tech">Cloudflare</span></div></div>
   <section>
-    <h2>🔍 Findings (16 total)</h2>
+    <h2>🔍 Findings (28 total)</h2>
     <div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">API Accepts Privileged Fields in POST Body</span>
+    <span class="cvss-tag">CVSS 7.1</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>2D30877F</code></td></tr>
+      <tr><td>Type</td><td>Mass Assignment Vulnerability</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>API3:2023 - Broken Object Property Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Fields [&#x27;isAdmin&#x27;, &#x27;is_admin&#x27;, &#x27;role&#x27;, &#x27;verified&#x27;, &#x27;balance&#x27;, &#x27;price&#x27;, &#x27;permissions&#x27;] were accepted and reflected. Users may set their own admin roles or manipulate pricing.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>{&#x27;isAdmin&#x27;: True, &#x27;is_admin&#x27;: True, &#x27;role&#x27;: &#x27;admin&#x27;, &#x27;verified&#x27;: True, &#x27;balance&#x27;: 99999, &#x27;price&#x27;: 0, &#x27;permissions&#x27;: [&#x27;admin&#x27;, &#x27;write&#x27;]}</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;username&quot;: &quot;testuser&quot;,
+  &quot;email&quot;: &quot;test@test.com&quot;,
+  &quot;isAdmin&quot;: true,
+  &quot;is_admin&quot;: true,
+  &quot;role&quot;: &quot;admin&quot;,
+  &quot;verified&quot;: true,
+  &quot;balance&quot;: 99999,
+  &quot;price&quot;: 0,
+  &quot;permissions&quot;: [
+    &quot;admin&quot;,
+    &quot;write&quot;
+  ],
+  &quot;apiId&quot;: &quot;v1&quot;,
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Use explicit DTOs/serializers — never bind request body directly to ORM models.</li><li>Allowlist exactly which fields users may set.</li><li>Deny any unlisted properties by default.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>mass-assignment</code> <code>authorization</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">API Accepts Privileged Fields in POST Body</span>
+    <span class="cvss-tag">CVSS 7.1</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>D03EDDF3</code></td></tr>
+      <tr><td>Type</td><td>Mass Assignment Vulnerability</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>API3:2023 - Broken Object Property Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Fields [&#x27;isAdmin&#x27;, &#x27;is_admin&#x27;, &#x27;role&#x27;, &#x27;verified&#x27;, &#x27;balance&#x27;, &#x27;price&#x27;, &#x27;permissions&#x27;] were accepted and reflected. Users may set their own admin roles or manipulate pricing.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>{&#x27;isAdmin&#x27;: True, &#x27;is_admin&#x27;: True, &#x27;role&#x27;: &#x27;admin&#x27;, &#x27;verified&#x27;: True, &#x27;balance&#x27;: 99999, &#x27;price&#x27;: 0, &#x27;permissions&#x27;: [&#x27;admin&#x27;, &#x27;write&#x27;]}</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;username&quot;: &quot;testuser&quot;,
+  &quot;email&quot;: &quot;test@test.com&quot;,
+  &quot;isAdmin&quot;: true,
+  &quot;is_admin&quot;: true,
+  &quot;role&quot;: &quot;admin&quot;,
+  &quot;verified&quot;: true,
+  &quot;balance&quot;: 99999,
+  &quot;price&quot;: 0,
+  &quot;permissions&quot;: [
+    &quot;admin&quot;,
+    &quot;write&quot;
+  ],
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Use explicit DTOs/serializers — never bind request body directly to ORM models.</li><li>Allowlist exactly which fields users may set.</li><li>Deny any unlisted properties by default.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>mass-assignment</code> <code>authorization</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">Protected Endpoint Accessible Without Authentication</span>
+    <span class="cvss-tag">CVSS 10.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>AB177576</code></td></tr>
+      <tr><td>Type</td><td>Unauthenticated Access to Protected Endpoint</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>200</td></tr>
+      <tr><td>OWASP</td><td>API2:2023 - Broken Authentication</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>auth</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>&#x27;https://jsonplaceholder.typicode.com/api/v1/users&#x27; returned HTTP 200 with data without any auth credentials. Sensitive data may be publicly accessible.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>No Authorization header</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Leanne Graham&quot;,
+    &quot;username&quot;: &quot;Bret&quot;,
+    &quot;email&quot;: &quot;Sincere@april.biz&quot;,
+    &quot;address&quot;: {
+      &quot;street&quot;: &quot;Kulas Light&quot;,
+      &quot;suite&quot;: &quot;Apt. 556&quot;,
+      &quot;city&quot;: &quot;Gwenborough&quot;,
+      &quot;zipcode&quot;: &quot;92998-3874&quot;,
+      &quot;geo&quot;: {
+        &quot;lat&quot;: &quot;-37.3159&quot;,
+        &quot;lng&quot;: &quot;81.1496&quot;
+      }
+    },
+    &quot;phone&quot;: &quot;1-770-736-8031 x56442&quot;,
+    &quot;website&quot;: &quot;hildegard.org&quot;,
+    &quot;company&quot;: {
+      &quot;name&quot;: &quot;Romaguera-Crona&quot;,
+      &quot;catchPhrase&quot;: &quot;Multi-layered client-server neural-</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Apply authentication middleware globally (deny-by-default).</li><li>Explicitly whitelist public endpoints — everything else requires auth.</li><li>Use JWTs or server-side sessions validated on every request.</li><li>Return 401 for unauthenticated requests to protected resources.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>auth</code> <code>unauthenticated</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">Protected Endpoint Accessible Without Authentication</span>
+    <span class="cvss-tag">CVSS 10.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>6B005516</code></td></tr>
+      <tr><td>Type</td><td>Unauthenticated Access to Protected Endpoint</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>200</td></tr>
+      <tr><td>OWASP</td><td>API2:2023 - Broken Authentication</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>auth</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>&#x27;https://jsonplaceholder.typicode.com/users&#x27; returned HTTP 200 with data without any auth credentials. Sensitive data may be publicly accessible.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>No Authorization header</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Leanne Graham&quot;,
+    &quot;username&quot;: &quot;Bret&quot;,
+    &quot;email&quot;: &quot;Sincere@april.biz&quot;,
+    &quot;address&quot;: {
+      &quot;street&quot;: &quot;Kulas Light&quot;,
+      &quot;suite&quot;: &quot;Apt. 556&quot;,
+      &quot;city&quot;: &quot;Gwenborough&quot;,
+      &quot;zipcode&quot;: &quot;92998-3874&quot;,
+      &quot;geo&quot;: {
+        &quot;lat&quot;: &quot;-37.3159&quot;,
+        &quot;lng&quot;: &quot;81.1496&quot;
+      }
+    },
+    &quot;phone&quot;: &quot;1-770-736-8031 x56442&quot;,
+    &quot;website&quot;: &quot;hildegard.org&quot;,
+    &quot;company&quot;: {
+      &quot;name&quot;: &quot;Romaguera-Crona&quot;,
+      &quot;catchPhrase&quot;: &quot;Multi-layered client-server neural-</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Apply authentication middleware globally (deny-by-default).</li><li>Explicitly whitelist public endpoints — everything else requires auth.</li><li>Use JWTs or server-side sessions validated on every request.</li><li>Return 401 for unauthenticated requests to protected resources.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>auth</code> <code>unauthenticated</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">IDOR: Parameter &#x27;id&#x27; Returns Different Objects</span>
+    <span class="cvss-tag">CVSS 0.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>7AC895CE</code></td></tr>
+      <tr><td>Type</td><td>IDOR via Query Parameter</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>id</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API1:2023 - Broken Object Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem"></code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>idor</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br></p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>?id=1, ?id=2, ?id=3</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"></ul></div>
+    
+    
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">IDOR: Parameter &#x27;id&#x27; Returns Different Objects</span>
+    <span class="cvss-tag">CVSS 0.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>72DFFC88</code></td></tr>
+      <tr><td>Type</td><td>IDOR via Query Parameter</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>id</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API1:2023 - Broken Object Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem"></code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>idor</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br></p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>?id=1, ?id=2, ?id=3</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"></ul></div>
+    
+    
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">XSS Reflected from POST Field &#x27;name&#x27;</span>
+    <span class="cvss-tag">CVSS 6.0</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>CF1BD295</code></td></tr>
+      <tr><td>Type</td><td>XSS in POST Body</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>name</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>A03:2021 - Injection (XSS / SSTI)</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>xss</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>XSS payload reflected in POST body field &#x27;name&#x27;.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;name&quot;: &quot;&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;&quot;,
+  &quot;apiId&quot;: &quot;v1&quot;,
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Encode all output regardless of input source (GET/POST/headers).</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>xss</code> <code>post</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">XSS Reflected from POST Field &#x27;name&#x27;</span>
+    <span class="cvss-tag">CVSS 6.0</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>5C8B3390</code></td></tr>
+      <tr><td>Type</td><td>XSS in POST Body</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>name</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>A03:2021 - Injection (XSS / SSTI)</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>xss</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>XSS payload reflected in POST body field &#x27;name&#x27;.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;name&quot;: &quot;&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;&quot;,
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Encode all output regardless of input source (GET/POST/headers).</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>xss</code> <code>post</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">XSS Reflected from POST Field &#x27;name&#x27;</span>
+    <span class="cvss-tag">CVSS 6.0</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>CF1BD295</code></td></tr>
+      <tr><td>Type</td><td>XSS in POST Body</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>name</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>A03:2021 - Injection (XSS / SSTI)</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>xss</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>XSS payload reflected in POST body field &#x27;name&#x27;.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;name&quot;: &quot;&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;&quot;,
+  &quot;apiId&quot;: &quot;v1&quot;,
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Encode all output regardless of input source (GET/POST/headers).</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>xss</code> <code>post</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">XSS Reflected from POST Field &#x27;name&#x27;</span>
+    <span class="cvss-tag">CVSS 6.0</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>5C8B3390</code></td></tr>
+      <tr><td>Type</td><td>XSS in POST Body</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>name</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>A03:2021 - Injection (XSS / SSTI)</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>xss</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>XSS payload reflected in POST body field &#x27;name&#x27;.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;name&quot;: &quot;&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;&quot;,
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Encode all output regardless of input source (GET/POST/headers).</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>xss</code> <code>post</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">IDOR: Parameter &#x27;id&#x27; Returns Different Objects</span>
+    <span class="cvss-tag">CVSS 0.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>7AC895CE</code></td></tr>
+      <tr><td>Type</td><td>IDOR via Query Parameter</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>id</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API1:2023 - Broken Object Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem"></code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>idor</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br></p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>?id=1, ?id=2, ?id=3</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"></ul></div>
+    
+    
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">IDOR: Parameter &#x27;id&#x27; Returns Different Objects</span>
+    <span class="cvss-tag">CVSS 0.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>72DFFC88</code></td></tr>
+      <tr><td>Type</td><td>IDOR via Query Parameter</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>id</td></tr>
+      <tr><td>HTTP Status</td><td>0</td></tr>
+      <tr><td>OWASP</td><td>API1:2023 - Broken Object Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem"></code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>idor</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br></p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>?id=1, ?id=2, ?id=3</pre>
+    
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"></ul></div>
+    
+    
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">Protected Endpoint Accessible Without Authentication</span>
+    <span class="cvss-tag">CVSS 10.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>AB177576</code></td></tr>
+      <tr><td>Type</td><td>Unauthenticated Access to Protected Endpoint</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>200</td></tr>
+      <tr><td>OWASP</td><td>API2:2023 - Broken Authentication</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>auth</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>&#x27;https://jsonplaceholder.typicode.com/api/v1/users&#x27; returned HTTP 200 with data without any auth credentials. Sensitive data may be publicly accessible.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>No Authorization header</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Leanne Graham&quot;,
+    &quot;username&quot;: &quot;Bret&quot;,
+    &quot;email&quot;: &quot;Sincere@april.biz&quot;,
+    &quot;address&quot;: {
+      &quot;street&quot;: &quot;Kulas Light&quot;,
+      &quot;suite&quot;: &quot;Apt. 556&quot;,
+      &quot;city&quot;: &quot;Gwenborough&quot;,
+      &quot;zipcode&quot;: &quot;92998-3874&quot;,
+      &quot;geo&quot;: {
+        &quot;lat&quot;: &quot;-37.3159&quot;,
+        &quot;lng&quot;: &quot;81.1496&quot;
+      }
+    },
+    &quot;phone&quot;: &quot;1-770-736-8031 x56442&quot;,
+    &quot;website&quot;: &quot;hildegard.org&quot;,
+    &quot;company&quot;: {
+      &quot;name&quot;: &quot;Romaguera-Crona&quot;,
+      &quot;catchPhrase&quot;: &quot;Multi-layered client-server neural-</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Apply authentication middleware globally (deny-by-default).</li><li>Explicitly whitelist public endpoints — everything else requires auth.</li><li>Use JWTs or server-side sessions validated on every request.</li><li>Return 401 for unauthenticated requests to protected resources.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>auth</code> <code>unauthenticated</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">Protected Endpoint Accessible Without Authentication</span>
+    <span class="cvss-tag">CVSS 10.0</span>
+    <span class="unconf">⚠️ Unconfirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>6B005516</code></td></tr>
+      <tr><td>Type</td><td>Unauthenticated Access to Protected Endpoint</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>GET</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>200</td></tr>
+      <tr><td>OWASP</td><td>API2:2023 - Broken Authentication</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>auth</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>&#x27;https://jsonplaceholder.typicode.com/users&#x27; returned HTTP 200 with data without any auth credentials. Sensitive data may be publicly accessible.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>No Authorization header</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>[
+  {
+    &quot;id&quot;: 1,
+    &quot;name&quot;: &quot;Leanne Graham&quot;,
+    &quot;username&quot;: &quot;Bret&quot;,
+    &quot;email&quot;: &quot;Sincere@april.biz&quot;,
+    &quot;address&quot;: {
+      &quot;street&quot;: &quot;Kulas Light&quot;,
+      &quot;suite&quot;: &quot;Apt. 556&quot;,
+      &quot;city&quot;: &quot;Gwenborough&quot;,
+      &quot;zipcode&quot;: &quot;92998-3874&quot;,
+      &quot;geo&quot;: {
+        &quot;lat&quot;: &quot;-37.3159&quot;,
+        &quot;lng&quot;: &quot;81.1496&quot;
+      }
+    },
+    &quot;phone&quot;: &quot;1-770-736-8031 x56442&quot;,
+    &quot;website&quot;: &quot;hildegard.org&quot;,
+    &quot;company&quot;: {
+      &quot;name&quot;: &quot;Romaguera-Crona&quot;,
+      &quot;catchPhrase&quot;: &quot;Multi-layered client-server neural-</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Apply authentication middleware globally (deny-by-default).</li><li>Explicitly whitelist public endpoints — everything else requires auth.</li><li>Use JWTs or server-side sessions validated on every request.</li><li>Return 401 for unauthenticated requests to protected resources.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>auth</code> <code>unauthenticated</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">API Accepts Privileged Fields in POST Body</span>
+    <span class="cvss-tag">CVSS 7.1</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>2D30877F</code></td></tr>
+      <tr><td>Type</td><td>Mass Assignment Vulnerability</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>API3:2023 - Broken Object Property Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Fields [&#x27;isAdmin&#x27;, &#x27;is_admin&#x27;, &#x27;role&#x27;, &#x27;verified&#x27;, &#x27;balance&#x27;, &#x27;price&#x27;, &#x27;permissions&#x27;] were accepted and reflected. Users may set their own admin roles or manipulate pricing.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>{&#x27;isAdmin&#x27;: True, &#x27;is_admin&#x27;: True, &#x27;role&#x27;: &#x27;admin&#x27;, &#x27;verified&#x27;: True, &#x27;balance&#x27;: 99999, &#x27;price&#x27;: 0, &#x27;permissions&#x27;: [&#x27;admin&#x27;, &#x27;write&#x27;]}</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;username&quot;: &quot;testuser&quot;,
+  &quot;email&quot;: &quot;test@test.com&quot;,
+  &quot;isAdmin&quot;: true,
+  &quot;is_admin&quot;: true,
+  &quot;role&quot;: &quot;admin&quot;,
+  &quot;verified&quot;: true,
+  &quot;balance&quot;: 99999,
+  &quot;price&quot;: 0,
+  &quot;permissions&quot;: [
+    &quot;admin&quot;,
+    &quot;write&quot;
+  ],
+  &quot;apiId&quot;: &quot;v1&quot;,
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Use explicit DTOs/serializers — never bind request body directly to ORM models.</li><li>Allowlist exactly which fields users may set.</li><li>Deny any unlisted properties by default.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>mass-assignment</code> <code>authorization</code></p>
+  </div>
+</div>
+<div class="finding">
+  <div class="fhdr" style="background:#fff7ed">
+    <span class="badge" style="background:#ea580c;color:#fff">HIGH</span>
+    <span class="ftitle">API Accepts Privileged Fields in POST Body</span>
+    <span class="cvss-tag">CVSS 7.1</span>
+    <span class="conf">✅ Confirmed</span>
+    <span class="toggle">▼</span>
+  </div>
+  <div class="fbody">
+    <table>
+      <tr><th colspan="2">Finding Details</th></tr>
+      <tr><td>ID</td><td><code>D03EDDF3</code></td></tr>
+      <tr><td>Type</td><td>Mass Assignment Vulnerability</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/users</code></td></tr>
+      <tr><td>Method</td><td><code>POST</code></td></tr>
+      <tr><td>Parameter</td><td>—</td></tr>
+      <tr><td>HTTP Status</td><td>201</td></tr>
+      <tr><td>OWASP</td><td>API3:2023 - Broken Object Property Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:N</code></td></tr>
+      <tr><td>Response Time</td><td>0ms</td></tr>
+      <tr><td>Module</td><td>misconfig</td></tr>
+    </table>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Fields [&#x27;isAdmin&#x27;, &#x27;is_admin&#x27;, &#x27;role&#x27;, &#x27;verified&#x27;, &#x27;balance&#x27;, &#x27;price&#x27;, &#x27;permissions&#x27;] were accepted and reflected. Users may set their own admin roles or manipulate pricing.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>{&#x27;isAdmin&#x27;: True, &#x27;is_admin&#x27;: True, &#x27;role&#x27;: &#x27;admin&#x27;, &#x27;verified&#x27;: True, &#x27;balance&#x27;: 99999, &#x27;price&#x27;: 0, &#x27;permissions&#x27;: [&#x27;admin&#x27;, &#x27;write&#x27;]}</pre>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>{
+  &quot;username&quot;: &quot;testuser&quot;,
+  &quot;email&quot;: &quot;test@test.com&quot;,
+  &quot;isAdmin&quot;: true,
+  &quot;is_admin&quot;: true,
+  &quot;role&quot;: &quot;admin&quot;,
+  &quot;verified&quot;: true,
+  &quot;balance&quot;: 99999,
+  &quot;price&quot;: 0,
+  &quot;permissions&quot;: [
+    &quot;admin&quot;,
+    &quot;write&quot;
+  ],
+  &quot;id&quot;: 11
+}</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Use explicit DTOs/serializers — never bind request body directly to ORM models.</li><li>Allowlist exactly which fields users may set.</li><li>Deny any unlisted properties by default.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>mass-assignment</code> <code>authorization</code></p>
+  </div>
+</div>
+<div class="finding">
   <div class="fhdr" style="background:#fffbeb">
     <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
     <span class="ftitle">Security Header Missing: Strict-Transport-Security</span>
@@ -101,9 +733,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>5116F8F9</code></td></tr>
+      <tr><td>ID</td><td><code>E7E45F1E</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: Strict-Transport-Security</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -131,9 +763,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>B1EB8C95</code></td></tr>
+      <tr><td>ID</td><td><code>80BC9D8F</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: Content-Security-Policy</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -153,37 +785,7 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
 <div class="finding">
   <div class="fhdr" style="background:#fffbeb">
     <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
-    <span class="ftitle">Security Header Missing: X-Frame-Options</span>
-    <span class="cvss-tag">CVSS 5.3</span>
-    <span class="unconf">⚠️ Unconfirmed</span>
-    <span class="toggle">▼</span>
-  </div>
-  <div class="fbody">
-    <table>
-      <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>BBDE9CB0</code></td></tr>
-      <tr><td>Type</td><td>Missing Security Header: X-Frame-Options</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
-      <tr><td>Method</td><td><code>GET</code></td></tr>
-      <tr><td>Parameter</td><td>—</td></tr>
-      <tr><td>HTTP Status</td><td>0</td></tr>
-      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
-      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
-      <tr><td>Response Time</td><td>0ms</td></tr>
-      <tr><td>Module</td><td>misconfig</td></tr>
-    </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;X-Frame-Options&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;X-Frame-Options&#x27; header</pre>
-    
-    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `X-Frame-Options: DENY`</li></ul></div>
-    
-    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
-  </div>
-</div>
-<div class="finding">
-  <div class="fhdr" style="background:#fffbeb">
-    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
-    <span class="ftitle">Rate Limiting Missing — Endpoint Open to Abuse</span>
+    <span class="ftitle">API Response Contains Email Address</span>
     <span class="cvss-tag">CVSS 7.5</span>
     <span class="conf">✅ Confirmed</span>
     <span class="toggle">▼</span>
@@ -191,23 +793,23 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>943E3506</code></td></tr>
-      <tr><td>Type</td><td>No Rate Limiting on API Endpoint</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>ID</td><td><code>3D0E2E5F</code></td></tr>
+      <tr><td>Type</td><td>Sensitive Data Exposure: Email Address</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
-      <tr><td>HTTP Status</td><td>0</td></tr>
-      <tr><td>OWASP</td><td>API4:2023 - Unrestricted Resource Consumption</td></tr>
-      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</code></td></tr>
+      <tr><td>HTTP Status</td><td>200</td></tr>
+      <tr><td>OWASP</td><td>API3:2023 - Broken Object Property Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N</code></td></tr>
       <tr><td>Response Time</td><td>0ms</td></tr>
       <tr><td>Module</td><td>misconfig</td></tr>
     </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>No rate limiting detected — endpoint accepts unlimited rapid requests, enabling DoS, scraping, and brute force.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>15 rapid requests, no throttling</pre>
-    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>All 15 returned {404}. No 429.</pre>
-    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Implement rate limiting (100 req/min per IP baseline).</li><li>Return 429 with Retry-After header when exceeded.</li><li>Add X-RateLimit-Limit / X-RateLimit-Remaining headers.</li><li>Use a reverse proxy (nginx, Cloudflare) for global limits.</li></ul></div>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Email Address found in API response. Data minimization principle violated.</p>
     
-    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>rate-limit</code> <code>dos</code></p>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>Pattern matched — sample: Sinc****.biz</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Remove Email Address from API responses. Apply data masking. Return only fields the client genuinely needs.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>sensitive-data</code> <code>disclosure</code></p>
   </div>
 </div>
 <div class="finding">
@@ -221,9 +823,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>5116F8F9</code></td></tr>
+      <tr><td>ID</td><td><code>E7E45F1E</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: Strict-Transport-Security</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -251,9 +853,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>B1EB8C95</code></td></tr>
+      <tr><td>ID</td><td><code>80BC9D8F</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: Content-Security-Policy</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -273,37 +875,7 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
 <div class="finding">
   <div class="fhdr" style="background:#fffbeb">
     <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
-    <span class="ftitle">Security Header Missing: X-Frame-Options</span>
-    <span class="cvss-tag">CVSS 5.3</span>
-    <span class="unconf">⚠️ Unconfirmed</span>
-    <span class="toggle">▼</span>
-  </div>
-  <div class="fbody">
-    <table>
-      <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>BBDE9CB0</code></td></tr>
-      <tr><td>Type</td><td>Missing Security Header: X-Frame-Options</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
-      <tr><td>Method</td><td><code>GET</code></td></tr>
-      <tr><td>Parameter</td><td>—</td></tr>
-      <tr><td>HTTP Status</td><td>0</td></tr>
-      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
-      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
-      <tr><td>Response Time</td><td>0ms</td></tr>
-      <tr><td>Module</td><td>misconfig</td></tr>
-    </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;X-Frame-Options&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;X-Frame-Options&#x27; header</pre>
-    
-    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `X-Frame-Options: DENY`</li></ul></div>
-    
-    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
-  </div>
-</div>
-<div class="finding">
-  <div class="fhdr" style="background:#fffbeb">
-    <span class="badge" style="background:#d97706;color:#fff">MEDIUM</span>
-    <span class="ftitle">Rate Limiting Missing — Endpoint Open to Abuse</span>
+    <span class="ftitle">API Response Contains Email Address</span>
     <span class="cvss-tag">CVSS 7.5</span>
     <span class="conf">✅ Confirmed</span>
     <span class="toggle">▼</span>
@@ -311,23 +883,23 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>943E3506</code></td></tr>
-      <tr><td>Type</td><td>No Rate Limiting on API Endpoint</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>ID</td><td><code>3D0E2E5F</code></td></tr>
+      <tr><td>Type</td><td>Sensitive Data Exposure: Email Address</td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com/api/v1/users</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
-      <tr><td>HTTP Status</td><td>0</td></tr>
-      <tr><td>OWASP</td><td>API4:2023 - Unrestricted Resource Consumption</td></tr>
-      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</code></td></tr>
+      <tr><td>HTTP Status</td><td>200</td></tr>
+      <tr><td>OWASP</td><td>API3:2023 - Broken Object Property Level Authorization</td></tr>
+      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N</code></td></tr>
       <tr><td>Response Time</td><td>0ms</td></tr>
       <tr><td>Module</td><td>misconfig</td></tr>
     </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>No rate limiting detected — endpoint accepts unlimited rapid requests, enabling DoS, scraping, and brute force.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>15 rapid requests, no throttling</pre>
-    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>All 15 returned {404}. No 429.</pre>
-    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Implement rate limiting (100 req/min per IP baseline).</li><li>Return 429 with Retry-After header when exceeded.</li><li>Add X-RateLimit-Limit / X-RateLimit-Remaining headers.</li><li>Use a reverse proxy (nginx, Cloudflare) for global limits.</li></ul></div>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Email Address found in API response. Data minimization principle violated.</p>
     
-    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>rate-limit</code> <code>dos</code></p>
+    <p style='margin-top:10px'><strong>Server Response:</strong></p><pre>Pattern matched — sample: Sinc****.biz</pre>
+    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Remove Email Address from API responses. Apply data masking. Return only fields the client genuinely needs.</li></ul></div>
+    
+    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>sensitive-data</code> <code>disclosure</code></p>
   </div>
 </div>
 <div class="finding">
@@ -341,9 +913,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>D0BCCB40</code></td></tr>
+      <tr><td>ID</td><td><code>A2D56521</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: X-Content-Type-Options</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -363,36 +935,6 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
 <div class="finding">
   <div class="fhdr" style="background:#eff6ff">
     <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
-    <span class="ftitle">Security Header Missing: Referrer-Policy</span>
-    <span class="cvss-tag">CVSS 5.3</span>
-    <span class="unconf">⚠️ Unconfirmed</span>
-    <span class="toggle">▼</span>
-  </div>
-  <div class="fbody">
-    <table>
-      <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>C4A87F71</code></td></tr>
-      <tr><td>Type</td><td>Missing Security Header: Referrer-Policy</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
-      <tr><td>Method</td><td><code>GET</code></td></tr>
-      <tr><td>Parameter</td><td>—</td></tr>
-      <tr><td>HTTP Status</td><td>0</td></tr>
-      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
-      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
-      <tr><td>Response Time</td><td>0ms</td></tr>
-      <tr><td>Module</td><td>misconfig</td></tr>
-    </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Referrer-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Referrer-Policy&#x27; header</pre>
-    
-    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Referrer-Policy: strict-origin-when-cross-origin`</li></ul></div>
-    
-    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
-  </div>
-</div>
-<div class="finding">
-  <div class="fhdr" style="background:#eff6ff">
-    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
     <span class="ftitle">Security Header Missing: Permissions-Policy</span>
     <span class="cvss-tag">CVSS 5.3</span>
     <span class="unconf">⚠️ Unconfirmed</span>
@@ -401,9 +943,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>6F1D4928</code></td></tr>
+      <tr><td>ID</td><td><code>BAE1766F</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: Permissions-Policy</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -431,9 +973,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>7B2EC2A9</code></td></tr>
+      <tr><td>ID</td><td><code>7C102C13</code></td></tr>
       <tr><td>Type</td><td>Server Fingerprinting Header: Server</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -442,8 +984,8 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
       <tr><td>Response Time</td><td>0ms</td></tr>
       <tr><td>Module</td><td>misconfig</td></tr>
     </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Header &#x27;Server: heroku-router&#x27; reveals technology details, aiding targeted attacks.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Server: heroku-router</pre>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Header &#x27;Server: cloudflare&#x27; reveals technology details, aiding targeted attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Server: cloudflare</pre>
     
     <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Remove or replace &#x27;Server&#x27; with a generic value (e.g., Server: webserver).</li></ul></div>
     
@@ -461,9 +1003,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>D0BCCB40</code></td></tr>
+      <tr><td>ID</td><td><code>A2D56521</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: X-Content-Type-Options</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -483,36 +1025,6 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
 <div class="finding">
   <div class="fhdr" style="background:#eff6ff">
     <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
-    <span class="ftitle">Security Header Missing: Referrer-Policy</span>
-    <span class="cvss-tag">CVSS 5.3</span>
-    <span class="unconf">⚠️ Unconfirmed</span>
-    <span class="toggle">▼</span>
-  </div>
-  <div class="fbody">
-    <table>
-      <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>C4A87F71</code></td></tr>
-      <tr><td>Type</td><td>Missing Security Header: Referrer-Policy</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
-      <tr><td>Method</td><td><code>GET</code></td></tr>
-      <tr><td>Parameter</td><td>—</td></tr>
-      <tr><td>HTTP Status</td><td>0</td></tr>
-      <tr><td>OWASP</td><td>API8:2023 - Security Misconfiguration</td></tr>
-      <tr><td>CVSS Vector</td><td><code style="font-size:.72rem">CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N</code></td></tr>
-      <tr><td>Response Time</td><td>0ms</td></tr>
-      <tr><td>Module</td><td>misconfig</td></tr>
-    </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>The security header &#x27;Referrer-Policy&#x27; is absent, leaving the application exposed to related client-side attacks.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Response missing &#x27;Referrer-Policy&#x27; header</pre>
-    
-    <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Add: `Referrer-Policy: strict-origin-when-cross-origin`</li></ul></div>
-    
-    <p style='margin-top:10px;font-size:.72rem;color:#94a3b8'>Tags: <code>headers</code> <code>misconfiguration</code></p>
-  </div>
-</div>
-<div class="finding">
-  <div class="fhdr" style="background:#eff6ff">
-    <span class="badge" style="background:#2563eb;color:#fff">LOW</span>
     <span class="ftitle">Security Header Missing: Permissions-Policy</span>
     <span class="cvss-tag">CVSS 5.3</span>
     <span class="unconf">⚠️ Unconfirmed</span>
@@ -521,9 +1033,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>6F1D4928</code></td></tr>
+      <tr><td>ID</td><td><code>BAE1766F</code></td></tr>
       <tr><td>Type</td><td>Missing Security Header: Permissions-Policy</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -551,9 +1063,9 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
   <div class="fbody">
     <table>
       <tr><th colspan="2">Finding Details</th></tr>
-      <tr><td>ID</td><td><code>7B2EC2A9</code></td></tr>
+      <tr><td>ID</td><td><code>7C102C13</code></td></tr>
       <tr><td>Type</td><td>Server Fingerprinting Header: Server</td></tr>
-      <tr><td>Endpoint</td><td><code>https://vampi-api.herokuapp.com/v1</code></td></tr>
+      <tr><td>Endpoint</td><td><code>https://jsonplaceholder.typicode.com</code></td></tr>
       <tr><td>Method</td><td><code>GET</code></td></tr>
       <tr><td>Parameter</td><td>—</td></tr>
       <tr><td>HTTP Status</td><td>0</td></tr>
@@ -562,8 +1074,8 @@ footer{text-align:center;padding:28px;color:var(--muted);font-size:.78rem;border
       <tr><td>Response Time</td><td>0ms</td></tr>
       <tr><td>Module</td><td>misconfig</td></tr>
     </table>
-    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Header &#x27;Server: heroku-router&#x27; reveals technology details, aiding targeted attacks.</p>
-    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Server: heroku-router</pre>
+    <p class="desc" style="margin-top:14px"><strong>Description:</strong><br>Header &#x27;Server: cloudflare&#x27; reveals technology details, aiding targeted attacks.</p>
+    <p style='margin-top:10px'><strong>Payload:</strong></p><pre>Server: cloudflare</pre>
     
     <div class="rec" style="margin-top:12px"><strong>✅ Recommendation:</strong><ul style="margin-top:6px;padding-left:16px"><li>Remove or replace &#x27;Server&#x27; with a generic value (e.g., Server: webserver).</li></ul></div>
     
@@ -595,9 +1107,9 @@ document.querySelectorAll('.fhdr').forEach(h=>{
 // Chart.js - Severity Doughnut
 const sevCounts = [
     0, 
-    0, 
-    8, 
-    8
+    16, 
+    6, 
+    6
 ];
 new Chart(document.getElementById('severityChart'), {
   type: 'doughnut',
@@ -618,9 +1130,9 @@ new Chart(document.getElementById('severityChart'), {
 
 // Chart.js - Confidence
 const confData = [
-    0,
-    0,
-    16
+    4,
+    4,
+    20
 ];
 new Chart(document.getElementById('confidenceChart'), {
   type: 'pie',
@@ -640,8 +1152,8 @@ new Chart(document.getElementById('confidenceChart'), {
 });
 
 // Chart.js - OWASP
-const owaspLabels = ['API8:2023 - Security Misconfiguration', 'API4:2023 - Unrestricted Resource Consumption'];
-const owaspData = [14, 2];
+const owaspLabels = ['API8:2023 - Security Misconfiguration', 'API3:2023 - Broken Object Property Level Authorization', 'API2:2023 - Broken Authentication', 'API1:2023 - Broken Object Level Authorization', 'A03:2021 - Injection (XSS / SSTI)'];
+const owaspData = [10, 6, 4, 4, 4];
 new Chart(document.getElementById('owaspChart'), {
   type: 'bar',
   data: {

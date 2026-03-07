@@ -26,7 +26,7 @@ class IDORPlugin(BasePlugin):
         self.log("Starting IDOR / BFLA scan")
         findings: List[Finding] = []
 
-        endpoints = result.discovered_endpoints or [target]
+        endpoints = (result.discovered_endpoints or [target])[:20]
         tasks = [self._test_path_idor(url) for url in endpoints]
         tasks += [self._test_param_idor(url) for url in endpoints]
         tasks += [self._test_bfla(url) for url in endpoints]

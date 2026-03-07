@@ -1,81 +1,155 @@
+<div align="center">
+
 # 🔐 API Security Scanner Pro — Enterprise Edition
 
-Welcome to the **Premium** version of your API Security Scanner. This project has been reorganized for professional use and includes advanced features like **OAST Integration**, **Hot-Reload Plugins**, and **Multi-User IDOR Confirmation**.
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Docker Support](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+A high-performance, asynchronous vulnerability scanner built specifically for modern REST and GraphQL APIs. 
+Uncover critical flaws like IDOR, BOLA, SSRF, JWT bypasses, and SQL Injections before attackers do.
+
+</div>
 
 ---
 
-## 🔥 Enterprise Features
+## 🔥 Features
 
-### 📡 OAST (Out-of-Band) Integration
-Detect blind vulnerabilities (SSRF, RCE, Blind SQLi) that traditional scanners miss.
-- **Provider**: Default integration with `interact.sh` protocol.
-- **Unique Domains**: Generates isolated subdomains for every scan to eliminate collisions.
-- **Auto-Verification**: Polls external servers to confirm callbacks in real-time.
-
-### 🔄 Plugin Hot-Reload
-Develop and debug security modules without stopping your scans.
-- **Watchdog Support**: Automatically reloads `.py` files in the `modules/` directory upon change.
-- **Live Testing**: Update your payloads and see the results instantly on the next scan phase.
-
-### 🧠 Advanced Confidence Scoring
-No more drowning in false positives. Every finding includes a **Confidence Score (0.0 - 1.0)** based on:
-- HTTP Status Code variance
-- Response body pattern matching
-- Time-based differential analysis
-- **OAST Callback** (instantly promotes to 100% confidence)
-
-### 📊 Professional Analytics
-- **Dynamic Charts**: HTML reports now include Chart.js visualizations (Severity distribution, OWASP coverage, Confidence ratio).
-- **CVSS v3.1 Integration**: Standalone calculator providing full vector strings for every vulnerability.
-- **Pydantic Config**: manageable via `.env` files or environment variables.
+* **⚡ Natively Asynchronous Engine:** Powered by `httpx` and `asyncio` for blazing fast concurrent scanning.
+* **📡 OAST (Out-of-Band) Integration:** Default integration with `interact.sh` to capture blind vulnerabilities (RCE, SSRF, Blind SQLi).
+* **🧠 Advanced Confidence Scoring:** Minimizes false positives by calculating granular confidence scores based on logic and variance analysis, automatically grading using **CVSS 3.1** vectors.
+* **🛡️ Self-Protection & Guardrails:** Built-in WAF fingerprinting, SSRF-blocking on private IPs, and smart internal rate limiting to prevent DoS against target systems.
+* **🔄 Hot-Reload Plugins:** Uses `watchdog` to automatically reload checking modules, enabling you to write and debug custom security tests on the fly.
+* **🌐 Enterprise Dashboard:** Beautiful real-time tracking interface built with Tailwind CSS, interacting natively via WebSockets and FastAPI.
+* **📄 Multi-Format Reporting:** Generates actionable, polished reports in HTML, JSON, Markdown, and SARIF for CI/CD integration.
 
 ---
 
-## 📁 Project Structure
+## 🏗️ Architecture Flow
 
-```text
-api-security-scanner-pro/
-├── dashboard/              # 🌐 Web-based Analysis Dashboard (Tailwind CSS)
-└── src/
-    └── apiscanner/         # 🐍 Core Scanner Engine
-        ├── core/           # OAST, CVSS, Engine, and Plugin Registry
-        ├── modules/        # Advanced Plugins (SQLi, BOLA, JWT, SSRF)
-        ├── payloads/       # Attack Payloads Database
-        ├── reports/        # HTML/JSON/Markdown/SARIF Generators
-        ├── tests/          # Unit tests for core logic
-        ├── config.py       # Pydantic-Settings & .env management
-        ├── cli.py          # Unified CLI Entrypoint
-        └── scanner.py      # Async Scan Orchestrator
+```mermaid
+graph TD
+    A[CLI / API Endpoint] -->|Config & Auth| B(Scanner Engine)
+    B -->|Async Dispatch| C{Plugin Registry}
+    
+    C -->|Discovery| D[Recon Plugins]
+    C -->|Injection| E[Attack Plugins]
+    C -->|Auth| F[Logic Plugins]
+    
+    E -.->|Payloads| G((Target API))
+    F -.->|Payloads| G
+    
+    G -.->|OAST Callbacks| H([interact.sh Server])
+    H -.->|Verify Polling| C
+    
+    C -->|Findings| I(Scoring & CVSS Engine)
+    I -->|JSON/HTML/MD| J[Reporting Engine]
+    I -->|WebSockets| K[Live UI Dashboard]
 ```
 
 ---
 
-## 🚀 Usage
+## ⚙️ Instalação (Local)
 
-### Full Enterprise Scan with OAST:
+Siga os passos abaixo para preparar o ambiente e instalar todas as dependências do projeto:
+
+1. **Clone o repositório:**
 ```bash
-python src/apiscanner/cli.py \
-  --target https://api.yourtarget.com \
-  --scan full \
-  --output report.html
+git clone https://github.com/barakinha4-ui/api-security-scanner-pro.git
+cd api-security-scanner-pro
 ```
 
-### Enable Hot-Reload for Plugin Development:
-Configure in `.env`:
-```env
-ENABLE_HOT_RELOAD=true
-MAX_CONCURRENCY=50
-OAST_PROVIDER=interact.sh
+2. **Instale as dependências:**
+```bash
+pip install -r requirements.txt
+```
+
+3. **Verifique a instalação do CLI:**
+```bash
+python src/apiscanner/cli.py --help
 ```
 
 ---
 
-## ☁️ Deploying the Dashboard
+## 🐋 Execução via Docker (Recomendado)
 
-Your **Enterprise Dashboard** can be hosted on **Cloudflare Pages** in seconds.
-1. Drag the `dashboard/` folder into [Cloudflare Pages](https://dash.cloudflare.com/).
-2. Upload your `report.json` to the deployed URL for a professional analytical view.
+O projeto já inclui um ambiente nativo orquestrado para isolar o Scanner e hospedar o Dashboard estático em seu servidor local.
+
+1. **Copie as variáveis de ambiente:**
+```bash
+cp .env.example .env
+```
+
+2. **Suba o Dashboard e o Container base (Nginx):**
+```bash
+docker compose up -d
+```
+> O Dashboard estará acessível em: `http://localhost:8080/index.html`
+
+3. **Inicie o CLI do Scanner diretamente pelo Docker (Os relatórios cairão na pasta ./reports física):**
+```bash
+docker compose run --rm scanner --target https://api.exemplo.com --scan full --output reports/auditoria.html
+```
 
 ---
 
-*This tool is for authorized security testing only. Happy hunting!*
+## 🚀 Usage Guide
+
+A arquitetura modular permite flexibilidade entre verificações super-rápidas ou testes profundos autorizados.
+
+**Auditoria Completa Básica**
+```bash
+python src/apiscanner/cli.py --target https://api.vulnerable.com --yes --output report.html
+```
+
+**Modo Autenticado para Testes de IDOR / BOLA**
+```bash
+python src/apiscanner/cli.py -t https://api.site.com --scan api -a "Bearer xyz123" --output api_report.json
+```
+
+**Modo Stealth Anti-WAF**
+```bash
+python src/apiscanner/cli.py -t https://api.site.com --stealth --threads 5 --format md html
+```
+
+*Screenshots da versão CLI vs versão Dashboard podem ser inseridas aqui apontando os retornos coloridos de console e gráficos.*
+
+---
+
+## 🧩 Como adicionar Custom Plugins
+
+A engine de `Hot-Reload` torna a criação de plugins super fácil, mesmo com a engine já rodando em background API.
+
+1. Crie um novo arquivo `.py` na pasta `src/apiscanner/modules/`
+2. Garanta que você importe a engine base e crie os checks assíncronos
+3. Qualquer instância com decoradores de registro ou classes que herdam do BasePlugin serão injetados e rodarão automaticamente no próximo `scan_type`.
+
+```python
+from core.models import Finding
+from core.plugins import Registry
+
+@Registry.register("meu_plugin", description="Example custom logic")
+async def check_custom_vuln(scanner_context):
+    resp = await scanner_context.engine.get(f"{scanner_context.target}/admin")
+    if resp.status == 200:
+        scanner_context.report(Finding(title="Exposed Admin", endpoint="/admin", severity="HIGH"))
+```
+
+---
+
+## 🗺️ Roadmap & Futuro
+
+- [x] OAST nativo Integrado
+- [x] Proteção anti-SSRF e loopbacks
+- [x] Live Engine com WebSockets + FastAPI
+- [ ] Exportação nativa de relatórios p/ formato SARIF (GitHub Actions)
+- [ ] Integração com AWS / Cloudflare nativa para extração de logs
+- [ ] SaaS wrapper + Fila de Background workers Celery.
+
+---
+
+## 📄 License
+
+Este software foi desenhado para propósitos educacionais e testes de segurança em ambientes **autorizados**.
+Distribuído sobre a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.

@@ -102,7 +102,7 @@ class OASTIntegration:
             ]
         return [domain]
 
-    async def verify_interaction(self, correlation_marker: str, timeout: int = 10) -> bool:
+    async def verify_interaction(self, correlation_marker: str, timeout: int = 1) -> bool:
         """
         Polls for a specific interaction marker. 
         Markers can be injected into paths or queries to identify which payload triggered the callback.
@@ -113,5 +113,5 @@ class OASTIntegration:
             for inter in current:
                 if correlation_marker in inter.raw_request or correlation_marker in inter.query:
                     return True
-            await asyncio.sleep(2)
+            await asyncio.sleep(0.5)
         return False

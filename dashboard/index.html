@@ -4,27 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Security Scanner Pro — Enterprise Dashboard</title>
+    <title>Scanner Pro — Live Enterprise Audit</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        primary: '#1d4ed8',
+                        primary: '#3b82f6',
                         dark: '#0f172a',
-                        card: '#1e293b'
+                        card: '#1e293b',
+                        accent: '#8b5cf6'
                     }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap"
         rel="stylesheet">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Outfit', sans-serif;
         }
 
         .mono {
@@ -32,508 +34,530 @@
         }
 
         .glass {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .finding-card {
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .finding-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.01);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .pulse-live {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.4;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
         }
     </style>
 </head>
 
-<body class="bg-dark text-slate-200 min-h-screen">
+<body class="bg-[#0b0f1a] text-slate-200 min-h-screen selection:bg-primary/30">
 
-    <!-- Sidebar -->
-    <div class="fixed left-0 top-0 h-full w-64 glass border-r border-slate-800 p-6 flex flex-col gap-8 hidden lg:flex">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center font-bold text-white text-xl">
-                AS</div>
-            <h1 class="text-xl font-bold tracking-tight">Scanner <span
-                    class="text-primary text-xs uppercase ml-1 opacity-80">Pro</span></h1>
-        </div>
-
-        <nav class="flex flex-col gap-2">
-            <a href="#" class="flex items-center gap-3 p-3 rounded-lg bg-primary/10 text-primary font-semibold">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Auth Overlay (Shown if no API Key) -->
+    <div id="authOverlay" class="fixed inset-0 z-[100] glass flex items-center justify-center p-4">
+        <div class="w-full max-w-sm p-8 rounded-3xl bg-slate-900 border border-white/10 shadow-2xl">
+            <div class="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
-                    </path>
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                Dashboard
-            </a>
-            <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-slate-400">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-                Reports
-            </a>
-            <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 text-slate-400">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
-                    </path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                Settings
-            </a>
-        </nav>
-
-        <div class="mt-auto bg-primary/20 p-4 rounded-xl border border-primary/30">
-            <p class="text-xs font-semibold text-primary mb-1">PRO FEATURES ENABLED</p>
-            <p class="text-[10px] text-slate-400">Multi-user IDOR, CI/CD Integration, Premium Reports</p>
+            </div>
+            <h2 class="text-xl font-bold text-center mb-2">Connect to Engine</h2>
+            <p class="text-slate-500 text-sm text-center mb-6">Enter the API Key displayed in your terminal</p>
+            <input id="apiKeyInput" type="password" placeholder="Paste X-API-KEY here..."
+                class="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-center mono text-sm mb-4 outline-none focus:border-primary transition-all">
+            <button id="authBtn"
+                class="w-full bg-primary hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20">Authenticate</button>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="lg:ml-64 p-8">
-        <div id="newScanModal"
-            class="fixed inset-0 bg-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-            <div class="glass w-full max-w-lg rounded-2xl p-8 animate-in zoom-in duration-200">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl font-bold">Launch New Scan</h3>
-                    <button id="closeModal" class="text-slate-500 hover:text-white text-2xl">&times;</button>
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside
+            class="w-72 h-screen sticky top-0 bg-[#0f172a]/50 border-r border-white/5 p-8 flex flex-col gap-8 hidden xl:flex">
+            <div class="flex items-center gap-4">
+                <div
+                    class="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
                 </div>
-                <div class="space-y-4">
+                <div>
+                    <h1 class="font-bold text-lg leading-tight uppercase tracking-tighter">Audit <span
+                            class="text-primary">Pro</span></h1>
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">v2.1 Enterprise</span>
+                </div>
+            </div>
+
+            <nav class="flex flex-col gap-2">
+                <button
+                    class="flex items-center gap-3 p-4 rounded-2xl bg-primary/10 text-primary font-bold transition-all"><svg
+                        class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg> Live Audits</button>
+                <button
+                    class="flex items-center gap-3 p-4 rounded-2xl text-slate-500 hover:bg-white/5 transition-all"><svg
+                        class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg> Historical</button>
+            </nav>
+
+            <div class="mt-auto">
+                <div
+                    class="p-6 rounded-2xl bg-gradient-to-br from-indigo-900/40 to-slate-900 border border-indigo-500/20">
+                    <h4 class="text-xs font-bold text-indigo-400 uppercase mb-2">Engine Status</h4>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div id="engineStatusDot"
+                            class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                        <span id="engineStatusText" class="text-xs font-bold">READY</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 leading-relaxed">System protected by SSRF-Shield and
+                        Auto-Redaction.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8 xl:p-12">
+            <!-- Header -->
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                <div>
+                    <h2 class="text-3xl font-black tracking-tight mb-2 italic">DASHBOARD</h2>
+                    <div class="flex items-center gap-3 text-slate-500 text-sm font-semibold">
+                        <span class="flex items-center gap-2"><span
+                                class="w-2 h-2 rounded-full bg-primary pulse-live"></span> LIVE MONITOR</span>
+                        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+                        <span id="currentScanTarget">No active target</span>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button id="openNewScanBtn"
+                        class="bg-primary hover:bg-blue-500 text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-primary/20 transition-all border border-blue-400/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg> New Scan
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Grid -->
+            <div id="statsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <div class="glass p-8 rounded-[2rem] border-blue-500/10">
+                    <div class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Risk Exposure</div>
+                    <div id="vulnerabilityCount" class="text-5xl font-black italic">0</div>
+                    <div class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Total Findings Detected</div>
+                </div>
+                <div class="glass p-8 rounded-[2rem] border-red-500/10">
+                    <div class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4">Critical Threats
+                    </div>
+                    <div id="criticalCount" class="text-5xl font-black italic text-red-500">0</div>
+                    <div class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Require Immediate Fix</div>
+                </div>
+                <div class="glass p-8 rounded-[2rem]">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Surface Coverage
+                    </div>
+                    <div id="endpointCount" class="text-5xl font-black italic">0</div>
+                    <div class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Endpoints Analyzed</div>
+                </div>
+                <div class="glass p-8 rounded-[2rem]">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">WAF Detection
+                    </div>
+                    <div id="wafName" class="text-xl font-black italic truncate">Probing...</div>
+                    <div class="mt-4 text-[10px] text-slate-500 font-bold uppercase">Security Guard Found</div>
+                </div>
+            </div>
+
+            <!-- Visualization Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 mb-12">
+                <div class="lg:col-span-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-black italic uppercase tracking-tighter">Vulnerability Feed</h3>
+                        <div id="liveIndicator"
+                            class="hidden flex items-center gap-2 bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-[10px] font-black border border-green-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span> SOCKET CONNECTED
+                        </div>
+                    </div>
+                    <div id="findingsContainer" class="space-y-4">
+                        <div
+                            class="py-20 flex flex-col items-center justify-center glass rounded-[2rem] text-slate-600 border-dashed">
+                            <svg class="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h10a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <p class="font-bold uppercase text-xs tracking-widest">Awaiting Scan Instruction</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-4 space-y-6">
+                    <div class="glass p-8 rounded-[2rem]">
+                        <h3 class="text-sm font-black uppercase tracking-widest mb-6">Severity Distribution</h3>
+                        <div class="h-64 flex items-center justify-center">
+                            <canvas id="severityChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass p-8 rounded-[2rem]">
+                        <h3 class="text-sm font-black uppercase tracking-widest mb-6">Live Events</h3>
+                        <div id="eventLog" class="space-y-3 h-64 overflow-y-auto pr-4 mono text-[10px] text-slate-500">
+                            <!-- Events here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Scan Modal -->
+    <div id="scanModal"
+        class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-xl glass p-10 rounded-[2.5rem] shadow-2xl relative border-white/10">
+            <button id="closeScanModal" class="absolute top-8 right-8 text-slate-500 hover:text-white"><svg
+                    class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg></button>
+            <h3 class="text-2xl font-black italic mb-8">INITIATE SECURITY AUDIT</h3>
+            <div class="space-y-6">
+                <div>
+                    <label
+                        class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Protocol
+                        & Endpoint</label>
+                    <input id="targetUrl" type="text" placeholder="https://api.vulnerable.com"
+                        class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 outline-none focus:border-primary transition-all font-semibold">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Target API URL</label>
-                        <input id="scanTarget" type="text" placeholder="https://api.example.com"
-                            class="w-full bg-dark/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none">
+                        <label
+                            class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Thread
+                            Concurrency</label>
+                        <select id="threads"
+                            class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 outline-none focus:border-primary appearance-none font-bold">
+                            <option value="10">10 Threads</option>
+                            <option value="20" selected>20 Threads</option>
+                            <option value="50">50 Threads (Aggressive)</option>
+                        </select>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Victim Auth
-                                (IDOR)</label>
-                            <input id="scanVictim" type="password" placeholder="Key or Token"
-                                class="w-full bg-dark/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500 uppercase block mb-2">Attacker Auth</label>
-                            <input id="scanAttacker" type="password" placeholder="Key or Token"
-                                class="w-full bg-dark/50 border border-white/10 rounded-xl p-3 text-sm focus:border-primary outline-none">
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center pt-4">
-                        <span id="apiStatus" class="text-[10px] font-bold text-slate-500 flex items-center gap-2">
-                            <span id="statusIndicator" class="w-2 h-2 rounded-full bg-slate-500"></span> API: IDLE
-                        </span>
-                        <button id="startScanBtn"
-                            class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-xl shadow-indigo-600/20">
-                            Execute Security Audit
-                        </button>
+                    <div>
+                        <label
+                            class="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Scan
+                            Profile</label>
+                        <select id="scanProfile"
+                            class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 outline-none focus:border-primary appearance-none font-bold">
+                            <option value="full">Full Audit</option>
+                            <option value="quick">Quick Recon</option>
+                            <option value="api">OWASP API Focused</option>
+                        </select>
                     </div>
                 </div>
+                <button id="executeScanBtn"
+                    class="w-full bg-primary hover:bg-blue-500 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-blue-500/30 mt-4 text-sm tracking-widest">REQUEST
+                    MISSION</button>
             </div>
         </div>
-
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-10">
-            <div>
-                <h2 class="text-2xl font-bold">Audit Overview</h2>
-                <p class="text-slate-400 text-sm mt-1">Enterprise-grade API Security Analysis</p>
-            </div>
-            <div class="flex gap-4">
-                <button id="openScanBtn"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                    </svg>
-                    New Live Scan
-                </button>
-                <button id="uploadBtn"
-                    class="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 border border-white/5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                    </svg>
-                    Import JSON
-                </button>
-                <input type="file" id="fileInput" class="hidden" accept=".json">
-            </div>
-        </header>
-
-        <div id="welcomeScreen" class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-6 text-slate-500">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-            </div>
-            <h3 class="text-xl font-semibold mb-2">No Report Loaded</h3>
-            <p class="text-slate-400 max-w-sm mb-8">Run the scanner CLI and upload the generated <code
-                    class="bg-white/5 border border-white/10 px-1 rounded">report.json</code> to view advanced
-                analytics.</p>
-        </div>
-
-        <div id="dashboardContent" class="hidden animate-in fade-in duration-500">
-            <!-- Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <div class="glass p-6 rounded-2xl">
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Security Score</span>
-                        <span id="scoreBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase">Great</span>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <span id="scoreVal" class="text-4xl font-bold italic">--</span>
-                        <span class="text-slate-500 font-medium">/100</span>
-                    </div>
-                    <div class="mt-4 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                        <div id="scoreBar" class="h-full bg-primary" style="width: 0%"></div>
-                    </div>
-                </div>
-
-                <div class="glass p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">High Risk Items</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="criticalCount" class="text-4xl font-bold text-red-500 italic">0</span>
-                        <span class="text-slate-500 font-medium text-sm">Critical findings</span>
-                    </div>
-                    <p class="mt-4 text-[11px] text-slate-400">Total detected vulnerabilities: <span id="totalFindings"
-                            class="text-white font-bold">0</span></p>
-                </div>
-
-                <div class="glass p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">Endpoints Scanned</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="endpointCount" class="text-4xl font-bold text-white italic">0</span>
-                        <span class="text-slate-500 font-medium text-sm">Discoveries</span>
-                    </div>
-                    <p class="mt-4 text-[11px] text-slate-400">Scan duration: <span id="durationVal"
-                            class="text-white font-bold">0s</span></p>
-                </div>
-
-                <div class="glass p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">WAF Status</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="wafDetected" class="text-xl font-bold text-slate-300 italic truncate">None
-                            Detected</span>
-                    </div>
-                    <p class="mt-4 text-[11px] text-slate-400">Confidence: <span id="wafConf"
-                            class="text-white font-bold">--%</span></p>
-                </div>
-            </div>
-
-            <!-- Main Sections -->
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                <!-- Left: Findings Feed -->
-                <div class="xl:col-span-2 space-y-4">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-lg font-bold">Vulnerability Feed</h3>
-                        <div class="flex gap-2">
-                            <span class="text-xs text-slate-500">Filter:</span>
-                            <button class="text-xs font-bold text-primary">All</button>
-                            <button class="text-xs font-bold text-slate-500 hover:text-white">Critical</button>
-                            <button class="text-xs font-bold text-slate-500 hover:text-white">Confirmed</button>
-                        </div>
-                    </div>
-
-                    <div id="findingsList" class="space-y-4">
-                        <!-- Findings will be injected here -->
-                    </div>
-                </div>
-
-                <!-- Right: Analysis Sidebar -->
-                <div class="space-y-6">
-                    <div class="glass p-6 rounded-2xl">
-                        <h3 class="text-sm font-bold mb-4 uppercase tracking-wider">Target Profile</h3>
-                        <div class="space-y-4 text-sm">
-                            <div>
-                                <p class="text-xs text-slate-500 mb-1">Base URL</p>
-                                <p id="targetUrl"
-                                    class="mono text-xs text-primary bg-primary/5 p-2 rounded break-all truncate">--</p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-slate-500 mb-1">Technologies Detected</p>
-                                <div id="techStack" class="flex flex-wrap gap-2 mt-2">
-                                    <!-- Badges here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass p-6 rounded-2xl">
-                        <h3 class="text-sm font-bold mb-4 uppercase tracking-wider">Audit Log</h3>
-                        <div id="auditLog" class="space-y-3 text-[10px] font-medium mono">
-                            <div class="flex gap-3 text-slate-500">
-                                <span>[SCAN_START]</span>
-                                <span>Session initialized successfully</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
+    </div>
 
     <script>
-        const openScanBtn = document.getElementById('openScanBtn');
-        const closeModal = document.getElementById('closeModal');
-        const newScanModal = document.getElementById('newScanModal');
-        const startScanBtn = document.getElementById('startScanBtn');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const apiStatusText = document.getElementById('apiStatus');
+        const API_BASE = 'http://localhost:8000';
+        let API_KEY = localStorage.getItem('audit_pro_key') || '';
+        let currentSocket = null;
+        let severityChart = null;
+        let stats = { findings: 0, critical: 0, endpoints: 0 };
 
-        const uploadBtn = document.getElementById('uploadBtn');
-        const fileInput = document.getElementById('fileInput');
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        const dashboardContent = document.getElementById('dashboardContent');
-
-        openScanBtn.onclick = () => newScanModal.classList.remove('hidden');
-        closeModal.onclick = () => newScanModal.classList.add('hidden');
-
-        const API_URL = 'http://localhost:8000';
-
-        startScanBtn.onclick = async () => {
-            const target = document.getElementById('scanTarget').value;
-            const victim = document.getElementById('scanVictim').value;
-            const attacker = document.getElementById('scanAttacker').value;
-
-            if (!target) return alert('Please enter a target URL');
-
-            startScanBtn.disabled = true;
-            startScanBtn.textContent = 'Launching...';
-            statusIndicator.className = 'w-2 h-2 rounded-full bg-yellow-400 animate-pulse';
-            apiStatusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-yellow-400"></span> API: INITIALIZING`;
-
-            try {
-                const res = await fetch(`${API_URL}/scans`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        target: target,
-                        auth: victim,
-                        auth_attacker: attacker
-                    })
-                });
-                const job = await res.json();
-                pollScan(job.scan_id);
-                newScanModal.classList.add('hidden');
-                addAuditLog('INFO', `Scan ${job.scan_id} started on ${target}`);
-            } catch (err) {
-                alert('Could not reach Scanner API. Make sure api.py is running.');
-                startScanBtn.disabled = false;
-                startScanBtn.textContent = 'Execute Security Audit';
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (API_KEY) {
+                document.getElementById('authOverlay').classList.add('hidden');
+                checkEngine();
             }
-        };
-
-        async function pollScan(id) {
-            const interval = setInterval(async () => {
-                try {
-                    const res = await fetch(`${API_URL}/scans/${id}`);
-                    const job = await res.json();
-
-                    if (job.status === 'completed') {
-                        clearInterval(interval);
-                        renderDashboard(job.result);
-                        addAuditLog('SUCCESS', `Scan ${id} finished successfully`);
-                        startScanBtn.disabled = false;
-                        startScanBtn.textContent = 'Execute Security Audit';
-                    } else if (job.status === 'failed') {
-                        clearInterval(interval);
-                        alert(`Scan failed: ${job.error}`);
-                        startScanBtn.disabled = false;
-                    }
-                } catch (e) {
-                    clearInterval(interval);
-                }
-            }, 2000);
-        }
-
-        uploadBtn.onclick = () => fileInput.click();
-
-        // Auto-load data.json if it exists (for automated deployments)
-        window.addEventListener('load', async () => {
-            try {
-                const response = await fetch('data.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    renderDashboard(data);
-                    addAuditLog('SUCCESS', 'Latest report auto-loaded from environment');
-                }
-            } catch (e) {
-                // Not found or fetch failed, wait for manual upload
-            }
+            initChart();
         });
 
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const data = JSON.parse(event.target.result);
-                    renderDashboard(data);
-                    addAuditLog('SUCCESS', 'External report loaded manually');
-                } catch (err) {
-                    alert('Invalid JSON file. Please upload a valid report.json');
-                    console.error(err);
-                }
-            };
-            reader.readAsText(file);
+        // --- Auth Logic ---
+        document.getElementById('authBtn').onclick = () => {
+            const val = document.getElementById('apiKeyInput').value;
+            if (val) {
+                API_KEY = val;
+                localStorage.setItem('audit_pro_key', val);
+                document.getElementById('authOverlay').classList.add('hidden');
+                checkEngine();
+            }
         };
 
-        function addAuditLog(type, msg) {
-            const log = document.getElementById('auditLog');
+        async function checkEngine() {
+            try {
+                const res = await fetch(`${API_BASE}/health`);
+                if (res.ok) logEvent('INFO', 'Connection established with Security Engine');
+            } catch (e) {
+                logEvent('ERROR', 'Safety Engine Offline');
+                document.getElementById('engineStatusDot').className = 'w-2 h-2 rounded-full bg-red-500';
+                document.getElementById('engineStatusText').textContent = 'OFFLINE';
+            }
+        }
+
+        // --- Modal Logic ---
+        document.getElementById('openNewScanBtn').onclick = () => document.getElementById('scanModal').classList.remove('hidden');
+        document.getElementById('closeScanModal').onclick = () => document.getElementById('scanModal').classList.add('hidden');
+
+        // --- Scan Logic ---
+        document.getElementById('executeScanBtn').onclick = async () => {
+            const target = document.getElementById('targetUrl').value;
+            const profile = document.getElementById('scanProfile').value;
+            const threads = document.getElementById('threads').value;
+
+            if (!target) return alert('Target URL required');
+
+            document.getElementById('executeScanBtn').disabled = true;
+            document.getElementById('executeScanBtn').textContent = 'INITIALIZING...';
+
+            try {
+                const res = await fetch(`${API_BASE}/scans`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
+                    body: JSON.stringify({ target, scan_type: profile, threads: parseInt(threads) })
+                });
+
+                if (res.status === 403) {
+                    alert('Invalid API Key. Please refresh and try again.');
+                    localStorage.removeItem('audit_pro_key');
+                    window.location.reload();
+                    return;
+                }
+
+                const data = await res.json();
+                document.getElementById('scanModal').classList.add('hidden');
+                document.getElementById('executeScanBtn').disabled = false;
+                document.getElementById('executeScanBtn').textContent = 'REQUEST MISSION';
+
+                startLiveTracking(data.scan_id, target);
+            } catch (e) {
+                alert('Scan launch failed. Check console.');
+                document.getElementById('executeScanBtn').disabled = false;
+                document.getElementById('executeScanBtn').textContent = 'REQUEST MISSION';
+            }
+        };
+
+        // --- WebSocket Live Tracking ---
+        function startLiveTracking(scanId, target) {
+            if (currentSocket) currentSocket.close();
+
+            // UI Reset
+            document.getElementById('findingsContainer').innerHTML = '';
+            document.getElementById('currentScanTarget').textContent = target;
+            document.getElementById('wafName').textContent = 'Probing...';
+            resetStats();
+
+            const wsUrl = `ws://localhost:8000/ws/${scanId}`;
+            currentSocket = new WebSocket(wsUrl);
+
+            document.getElementById('liveIndicator').classList.remove('hidden');
+            logEvent('ENGINE', `Establishing Socket for Scan ID ${scanId}`);
+
+            currentSocket.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+
+                if (msg.type === 'status') {
+                    logEvent('STATUS', `Scan state changed to: ${msg.data.toUpperCase()}`);
+                    if (msg.data === 'completed') {
+                        document.getElementById('liveIndicator').classList.add('hidden');
+                        logEvent('SUCCESS', 'Audit mission accomplished');
+                    }
+                } else if (msg.type === 'finding') {
+                    addFinding(msg.data);
+                }
+            };
+
+            currentSocket.onclose = () => {
+                document.getElementById('liveIndicator').classList.add('hidden');
+                logEvent('ENGINE', 'Socket connection closed');
+            };
+        }
+
+        // --- UI Modifiers ---
+        function addFinding(f) {
+            stats.findings++;
+            if (f.severity === 'CRITICAL') stats.critical++;
+            updateStatsUI();
+            updateChart(f.severity);
+
+            const container = document.getElementById('findingsContainer');
+            const card = document.createElement('div');
+            card.className = 'finding-card glass p-8 rounded-[2rem] border-l-8 animate-in slide-in-from-right duration-500 mb-4';
+
+            const colorMap = {
+                'CRITICAL': 'border-l-red-600',
+                'HIGH': 'border-l-orange-500',
+                'MEDIUM': 'border-l-yellow-500',
+                'LOW': 'border-l-blue-500'
+            };
+            const textCol = {
+                'CRITICAL': 'text-red-500',
+                'HIGH': 'text-orange-500',
+                'MEDIUM': 'text-yellow-500',
+                'LOW': 'text-blue-500'
+            };
+
+            card.classList.add(colorMap[f.severity] || 'border-l-slate-700');
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-6">
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${textCol[f.severity]} bg-slate-900/50 border border-white/5">${f.severity}</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">CONFIDENCE: ${Math.round((f.confidence_score || 0.8) * 100)}%</span>
+                        </div>
+                        <h4 class="text-xl font-bold italic tracking-tight">${f.title}</h4>
+                    </div>
+                    <div class="text-right flex flex-col items-end">
+                        <span class="text-xs font-black text-slate-500 mono mb-1">CVSS: <span class="text-orange-400">${f.cvss_score || '--'}</span></span>
+                        <div class="w-24 h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-primary" style="width: ${(f.confidence_score || 0.8) * 100}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-6 p-4 bg-black/40 rounded-2xl flex items-center gap-4 border border-white/5">
+                    <span class="px-3 py-1 bg-primary/20 text-primary rounded-lg text-[10px] font-black mono">${f.method}</span>
+                    <span class="text-xs text-slate-400 truncate mono flex-1">${f.endpoint}</span>
+                </div>
+                <p class="text-sm text-slate-500 leading-relaxed mb-6 font-medium">${f.description}</p>
+                <div class="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase pt-6 border-t border-white/5">
+                    <div class="flex gap-6">
+                        <span>MODULE: <span class="text-primary mono">${f.module || 'CORE'}</span></span>
+                        <span>OWASP: <span class="text-slate-400">${f.owasp_category || 'N/A'}</span></span>
+                    </div>
+                    <span>CONFIRMED: <span class="${f.confirmed ? 'text-green-500' : 'text-yellow-500'} italic">${f.confirmed ? 'YES' : 'PROBABLE'}</span></span>
+                </div>
+            `;
+            container.prepend(card);
+        }
+
+        function logEvent(tag, msg) {
+            const log = document.getElementById('eventLog');
             const entry = document.createElement('div');
-            entry.className = 'flex gap-3 text-slate-500';
-            entry.innerHTML = `<span>[${type}]</span> <span>${msg}</span>`;
+            entry.className = 'flex gap-3 mb-2';
+            entry.innerHTML = `<span class="text-primary font-black">[${tag}]</span> <span class="flex-1">${msg}</span>`;
             log.prepend(entry);
         }
 
-        function renderDashboard(data) {
-            welcomeScreen.classList.add('hidden');
-            dashboardContent.classList.remove('hidden');
-
-            const s = data.summary;
-
-            // Basic Stats
-            document.getElementById('scoreVal').textContent = s.security_score;
-            document.getElementById('scoreBar').style.width = s.security_score + '%';
-            document.getElementById('criticalCount').textContent = s.by_severity.CRITICAL || 0;
-            document.getElementById('totalFindings').textContent = s.total;
-            document.getElementById('endpointCount').textContent = s.endpoints_found;
-            document.getElementById('durationVal').textContent = s.duration + 's';
-            document.getElementById('wafDetected').textContent = s.waf_detected || 'None Detected';
-            document.getElementById('wafConf').textContent = data.waf_confidence ? Math.round(data.waf_confidence) + '%' : '--%';
-            document.getElementById('targetUrl').textContent = data.target;
-
-            const scoreBadge = document.getElementById('scoreBadge');
-            if (s.security_score >= 80) {
-                scoreBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-500/20 text-green-500';
-                scoreBadge.textContent = 'Secure';
-            } else if (s.security_score >= 50) {
-                scoreBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-yellow-500/20 text-yellow-500';
-                scoreBadge.textContent = 'Warning';
-            } else {
-                scoreBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-500';
-                scoreBadge.textContent = 'Critical';
+        function resetStats() {
+            stats = { findings: 0, critical: 0, endpoints: 0 };
+            updateStatsUI();
+            if (severityChart) {
+                severityChart.data.datasets[0].data = [0, 0, 0, 0];
+                severityChart.update();
             }
+        }
 
-            // Tech Stack
-            const techContainer = document.getElementById('techStack');
-            techContainer.innerHTML = '';
-            (s.technologies || []).forEach(t => {
-                const span = document.createElement('span');
-                span.className = 'px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] text-slate-300';
-                span.textContent = t;
-                techContainer.appendChild(span);
-            });
+        function updateStatsUI() {
+            document.getElementById('vulnerabilityCount').textContent = stats.findings;
+            document.getElementById('criticalCount').textContent = stats.critical;
+        }
 
-            // Findings List
-            const findingsList = document.getElementById('findingsList');
-            findingsList.innerHTML = '';
-
-            const sevCols = {
-                CRITICAL: 'text-red-500 bg-red-500/10 border-red-500/20',
-                HIGH: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
-                MEDIUM: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20',
-                LOW: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-                INFO: 'text-slate-400 bg-white/5 border-white/10'
-            };
-
-            data.findings.sort((a, b) => {
-                const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
-                return order[a.severity] - order[b.severity];
-            }).forEach(f => {
-                const card = document.createElement('div');
-                card.className = 'finding-card glass p-6 rounded-2xl border-l-4 overflow-hidden relative ' +
-                    (f.severity === 'CRITICAL' ? 'border-l-red-500' : (f.severity === 'HIGH' ? 'border-l-orange-500' : 'border-l-transparent'));
-
-                const confidenceColor = f.confidence_score >= 0.8 ? 'bg-green-500' : (f.confidence_score >= 0.5 ? 'bg-yellow-500' : 'bg-red-500');
-                const confidencePercent = f.confidence_score ? Math.round(f.confidence_score * 100) : '--';
-
-                // Status Badge Logic
-                let statusClass = "text-slate-400 bg-slate-800/50";
-                if (f.status_label && f.status_label.includes("Confirmed")) statusClass = "bg-green-500/20 text-green-400 border border-green-500/20";
-                if (f.status_label && f.status_label.includes("Probable")) statusClass = "bg-yellow-500/20 text-yellow-500 border border-yellow-500/20";
-
-                const statusBadge = `<span class="text-[9px] px-2 py-0.5 rounded-full uppercase font-black ${statusClass}">${f.status_label || 'Unconfirmed'}</span>`;
-
-                // Evidence Section
-                let evidenceHtml = "";
-                if (f.confirmation_evidence && f.confirmation_evidence.length > 0) {
-                    evidenceHtml = `
-                        <div class="mt-4 p-3 bg-green-500/5 border border-green-500/10 rounded-xl">
-                            <h5 class="text-[10px] uppercase font-bold text-green-500 mb-2 flex items-center gap-1">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg>
-                                Confirmation Evidence
-                            </h5>
-                            <ul class="text-[10px] text-slate-400 list-disc list-inside space-y-1">
-                                ${f.confirmation_evidence.map(e => `<li>${e}</li>`).join('')}
-                            </ul>
-                        </div>
-                    `;
+        function initChart() {
+            const ctx = document.getElementById('severityChart').getContext('2d');
+            severityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'High', 'Medium', 'Low'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#3b82f6'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    cutout: '80%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
                 }
-
-                // Indicators Section
-                let indicatorHtml = "";
-                if (f.false_positive_indicators && f.false_positive_indicators.length > 0) {
-                    indicatorHtml = `
-                        <div class="mt-2 p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
-                            <h5 class="text-[10px] uppercase font-bold text-red-500 mb-2 font-mono">⚠️ Noise Detected</h5>
-                            <ul class="text-[10px] text-slate-500 list-disc list-inside">
-                                ${f.false_positive_indicators.map(i => `<li>${i}</li>`).join('')}
-                            </ul>
-                        </div>
-                    `;
-                }
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="flex flex-col gap-2">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${sevCols[f.severity]}">${f.severity}</span>
-                                ${statusBadge}
-                            </div>
-                            <h4 class="font-bold text-slate-100 text-lg">${f.title}</h4>
-                        </div>
-                        <div class="text-right">
-                           <div class="text-[9px] text-slate-500 font-bold uppercase mb-1 flex items-center justify-end gap-1">
-                               Confidence: ${confidencePercent}%
-                               <div class="w-1.5 h-1.5 rounded-full ${confidenceColor.replace('bg-', 'bg-')} animate-pulse"></div>
-                           </div>
-                           <div class="h-1 w-28 bg-slate-800 rounded-full overflow-hidden">
-                               <div class="h-full ${confidenceColor}" style="width: ${confidencePercent}%"></div>
-                           </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3 mb-4 p-2 bg-black/20 rounded-lg">
-                        <span class="px-2 py-0.5 bg-primary/20 rounded text-[10px] font-bold text-primary mono uppercase border border-primary/20">${f.method}</span>
-                        <p class="mono text-[11px] text-slate-400 truncate break-all">${f.endpoint}</p>
-                    </div>
-
-                    <p class="text-[13px] text-slate-400 leading-relaxed mb-4">${f.description}</p>
-                    
-                    ${evidenceHtml}
-                    ${indicatorHtml}
-
-                    <div class="mt-6 pt-4 border-t border-white/5 flex justify-between items-center text-[10px]">
-                        <div class="flex gap-4">
-                            <span class="text-slate-500">CATEGORY: <span class="text-slate-300 font-bold">${f.owasp_category}</span></span>
-                            <span class="text-slate-500">ENGINE: <span class="text-primary font-mono">${f.module || 'CORE'}</span></span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-slate-500 mono">CVSS: <span class="text-orange-400 font-bold">${f.cvss_score || '--'}</span></span>
-                            <span class="text-slate-600 mono bg-white/5 px-2 py-0.5 rounded">${Math.round(f.response_time_ms || 0)}ms</span>
-                        </div>
-                    </div>
-                `;
-                findingsList.appendChild(card);
             });
         }
+
+        function updateChart(severity) {
+            const indexMap = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 };
+            const idx = indexMap[severity];
+            if (idx !== undefined) {
+                severityChart.data.datasets[0].data[idx]++;
+                severityChart.update();
+            }
+        }
+
+        // --- CLI WebSocket Live Tracking (Standalone ws-port 8765) ---
+        let cliSocket = null;
+        function connectCLIWebsocket() {
+            if (cliSocket) cliSocket.close();
+
+            cliSocket = new WebSocket("ws://localhost:8765");
+
+            cliSocket.onopen = () => {
+                document.getElementById('liveIndicator').classList.remove('hidden');
+                document.getElementById('currentScanTarget').textContent = "CLI Mode Active";
+                logEvent('CLI', 'Connected to CLI WebSocket server (ws://localhost:8765)');
+                // Only reset stats if we just started a fresh session
+                if (stats.findings === 0) {
+                    resetStats();
+                    document.getElementById('findingsContainer').innerHTML = '';
+                }
+            };
+
+            cliSocket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'finding') {
+                        addFinding(msg.data);
+                        logEvent('CLI-VULN', `New finding detected: ${msg.data.title}`);
+                    }
+                } catch (e) { }
+            };
+
+            cliSocket.onclose = () => {
+                // Silently retry every 5s to keep listening for when the user boots the CLI
+                setTimeout(connectCLIWebsocket, 5000);
+            };
+
+            cliSocket.onerror = (err) => {
+                // Fail silently since CLI isn't always running
+            };
+        }
+
+        // Auto-initialize CLI listener
+        connectCLIWebsocket();
     </script>
 </body>
 

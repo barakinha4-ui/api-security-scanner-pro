@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  scanner:
+    build: .
+    container_name: scanner
+    env_file:
+      - .env
+    volumes:
+      - ./reports:/app/reports
+    # Example command to run a scan. Defaults back to --help if overridden
+    command: ["--target", "https://jsonplaceholder.typicode.com", "--output", "reports/report.html"]
+
+  dashboard:
+    image: nginx:alpine
+    container_name: dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
