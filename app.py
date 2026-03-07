@@ -1,53 +1,92 @@
+# app.py - SaaS Wrapper com Scanner Real Integrado + Redis
+# Porta: 8000 | Auth: JWT/API Key | Engine: AsyncEngine + Scanner
+# Storage: Redis (persistência) | WS: Pub/Sub (multi-instância)
+
 import os
+import sys
 import json
 import uuid
 import logging
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
+from urllib.parse import urlparse
 
-from jose import jwt, JWTError
+# Adiciona src/apiscanner ao path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_PATH = os.path.join(BASE_DIR, "src", "apiscanner")
+if SRC_PATH not in sys.path:
+    sys.path.insert(0, SRC_PATH)
+
 from pydantic import BaseModel, ValidationError
-
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, WebSocket, WebSocketDisconnect, Security
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import PlainTextResponse
+from jose import jwt, JWTError
 from dotenv import load_dotenv
 import uvicorn
 
-# ================= Configuration =================
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, WebSocket, WebSocketDisconnect, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import PlainTextResponse, JSONResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+from redis.exceptions import RedisError
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from core.metrics import (
+    SCANNER_JOBS_TOTAL, SCANNER_ACTIVE_JOBS, SCANNER_FINDINGS_TOTAL,
+    SCAN_PHASE_DURATION, RATE_LIMITED_REQS_TOTAL, ACTIVE_SCANS_PER_TARGET,
+    HTTP_REQUEST_DURATION
+)
+import time
+
+# ── Scanner engine ──────────────────────────────────────────
+try:
+    from core.engine import AsyncEngine
+    from core.models import ScanResult, Finding, Severity
+    from scanner import Scanner
+    SCANNER_AVAILABLE = True
+except ImportError as e:
+    SCANNER_AVAILABLE = False
+    print(f"⚠️  Warning: apiscanner modules not found: {e}")
+
+# ── Redis ────────────────────────────────────────────────────
+from redis_config import get_redis, ping_redis
+from repository.job_repository import JobRepository
+import redis.asyncio as aioredis
+
+# ── Configuration ────────────────────────────────────────────
 load_dotenv()
 
-API_KEY_SECRET = os.getenv("API_KEY_SECRET", "super-secret-local-key")
+API_KEY_SECRET      = os.getenv("API_KEY_SECRET", "super-secret-local-key")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "supabase-secret")
+SCAN_TIMEOUT        = int(os.getenv("SCAN_TIMEOUT", "300"))
+MAX_CONCURRENCY     = int(os.getenv("MAX_CONCURRENCY", "20"))
 
+# ── FastAPI App ──────────────────────────────────────────────
 app = FastAPI(
     title="SaaS Scanner Pro",
-    description="API Security Scanner with async engine and WebSocket live logs",
-    version="1.0.0"
+    description="API Security Scanner — Redis-backed, WebSocket Pub/Sub, async engine",
+    version="2.0.0",
+    docs_url="/docs" if os.getenv("ENV") != "production" else None,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção: ["https://seu-dominio.com"]
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-security = HTTPBearer()
+security      = HTTPBearer()
+job_repo      = JobRepository()          # Singleton do repositório Redis
 
-# ================= Structured Logging =================
+# ── Structured Logging ───────────────────────────────────────
 class JSONFormatter(logging.Formatter):
-    """Formats logs as JSON for structured aggregation (Elasticsearch, Datadog etc)."""
     def format(self, record: logging.LogRecord) -> str:
         log_obj = {
             "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
-            "level": record.levelname,
-            "message": record.getMessage(),
-            "module": record.module,
-            "funcName": record.funcName,
+            "level":    record.levelname,
+            "message":  record.getMessage(),
+            "module":   record.module,
+            "job_id":   getattr(record, "job_id", None),
         }
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
@@ -55,264 +94,529 @@ class JSONFormatter(logging.Formatter):
 
 logger = logging.getLogger("app_logger")
 logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(JSONFormatter())
-logger.addHandler(handler)
+_handler = logging.StreamHandler()
+_handler.setFormatter(JSONFormatter())
+logger.addHandler(_handler)
 
-# ================= In-Memory State =================
-jobs: Dict[str, Dict[str, Any]] = {}
-active_connections: Dict[str, List[WebSocket]] = {}
+# ── Prometheus Metrics ───────────────────────────────────────
 
-# ================= Models =================
+@app.middleware("http")
+async def prometheus_latency_middleware(request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    # Ignora metrics no histogram de latência
+    if request.url.path != "/metrics":
+        HTTP_REQUEST_DURATION.labels(
+            method=request.method,
+            endpoint=request.url.path
+        ).observe(duration)
+    
+    return response
+
+
+# ── Rota de métricas para o Prometheus ──────────────────────
+@app.get("/metrics", tags=["Monitoramento"])
+async def metrics():
+    """Expondo métricas no formato Prometheus."""
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
+
+# ── Models ───────────────────────────────────────────────────
 class ScanRequest(BaseModel):
-    """Payload for initiating a new security scan."""
-    target: str
-    ports: List[int] = [22, 80, 443]
+    target:      str
+    ports:       List[int]       = [22, 80, 443]
+    timeout:     Optional[int]   = None
+    concurrency: Optional[int]   = None
+    scan_type:   Optional[str]   = "full"
+    plugins:     Optional[List[str]] = None
 
 class JWTPayload(BaseModel):
-    """Pydantic schema for parsing and validating the Supabase JWT."""
-    sub: str
-    exp: int
+    sub:  str
+    exp:  int
     role: Optional[str] = "authenticated"
 
-# ================= Auth Middleware =================
+    def is_valid(self) -> bool:
+        return datetime.now(timezone.utc).timestamp() < self.exp
+
+
+# ── Redis helper: 503 quando indisponível ────────────────────
+def _redis_503() -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Redis indisponível — tente novamente em instantes"},
+        headers={"Retry-After": "10"},
+    )
+
+
+# ── Auth ─────────────────────────────────────────────────────
 async def verify_access(credentials: HTTPAuthorizationCredentials = Security(security)) -> str:
-    """
-    Validates either the Local API Key or a Supabase JWT.
-    Checks expiration natively through python-jose and Pydantic.
-    """
     token = credentials.credentials
-    
-    # 1. Validate against Environment API Key
+
     if token == API_KEY_SECRET:
         return "api_key_user"
-        
-    # 2. Validate against Supabase JWT
+
     try:
-        # jwt.decode automatically validates expiration (exp) if present
-        payload_dict = jwt.decode(
-            token, 
-            SUPABASE_JWT_SECRET, 
-            algorithms=["HS256"], 
-            options={"verify_aud": False}
-        )
+        payload_dict = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
         payload = JWTPayload(**payload_dict)
+        if not payload.is_valid():
+            raise HTTPException(status_code=401, detail="Token expired")
         return payload.sub
-        
-    except JWTError as e:
-        logger.error(f"JWT Validation error: {str(e)}")
+    except (JWTError, ValidationError) as e:
+        logger.error(f"JWT validation failed: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
-    except ValidationError as e:
-        logger.error(f"JWT Payload validation error: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid token payload structure")
     except Exception as e:
-        logger.error(f"Unexpected Auth Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Auth Error")
+        logger.error(f"Unexpected auth error: {e}")
+        raise HTTPException(status_code=500, detail="Internal auth error")
 
-# ================= Background Tasks =================
-async def execute_scanner_job(job_id: str, request: ScanRequest) -> None:
-    """
-    Async background task acting as the engine wrapper.
-    Transitions statuses and dynamically pushes updates to WebSocket clients.
-    """
+
+# ═══════════════════════════════════════════════════════════════
+# WEBSOCKET PUB/SUB — Substitui active_connections dict
+# Canal: "ws:job:{job_id}" no Redis
+# Cada instância do app faz subscribe neste canal e repassa ao WS
+# ═══════════════════════════════════════════════════════════════
+def _ws_channel(job_id: str) -> str:
+    return f"ws:job:{job_id}"
+
+async def _publish(job_id: str, payload: dict) -> None:
+    """Publica payload JSON no canal Pub/Sub do job."""
     try:
-        logger.info(f"Starting async scan job {job_id} for target {request.target}")
-        # 3a. Update Status
-        jobs[job_id]["status"] = "running"
-        
-        # 2. Fire the asynchronous scan engine (Simulated delay here)
-        await asyncio.sleep(3) 
+        r = get_redis()
+        await r.publish(_ws_channel(job_id), json.dumps(payload))
+    except RedisError as e:
+        logger.warning(f"Falha ao publicar no canal Pub/Sub do job {job_id}: {e}")
 
-        # 3b. Update status to completed upon success
-        jobs[job_id]["status"] = "completed"
-        jobs[job_id]["results"] = {"open_ports": request.ports, "findings": ["No critical vulnerabilities."]}
-        logger.info(f"Successfully completed scan job {job_id}")
-        
-    except Exception as e:
-        logger.error(f"Scan job {job_id} failed abruptly: {str(e)}")
-        jobs[job_id]["status"] = "failed"
-        jobs[job_id]["error"] = str(e)
-        
-    finally:
-        # 4. Notify WebSocket if client connected
-        if job_id in active_connections:
-            message = json.dumps({
-                "job_id": job_id, 
-                "status": jobs[job_id]["status"],
-                "results": jobs[job_id].get("results"),
-                "error": jobs[job_id].get("error")
+
+# ═══════════════════════════════════════════════════════════════
+# BACKGROUND TASK — Executa scan real e persiste no Redis
+# ═══════════════════════════════════════════════════════════════
+async def execute_scanner_job(job_id: str, request: ScanRequest, user_id: str) -> None:
+    if not SCANNER_AVAILABLE:
+        msg = "Scanner engine not installed"
+        logger.error(msg, extra={"job_id": job_id})
+        await job_repo.update(job_id, {"status": "failed", "error": msg})
+        await _publish(job_id, {"job_id": job_id, "status": "failed", "error": msg})
+        SCANNER_JOBS_TOTAL.labels(status="failed").inc()
+        return
+
+    try:
+        SCANNER_ACTIVE_JOBS.inc()
+        logger.info("Starting scan job", extra={"job_id": job_id, "target": request.target})
+        await job_repo.update(job_id, {
+            "status":     "running",
+            "started_at": datetime.now(timezone.utc).isoformat()
+        })
+        SCANNER_JOBS_TOTAL.labels(status="running").inc()
+        await _publish(job_id, {"job_id": job_id, "status": "running", "target": request.target})
+
+        # ── Callback de finding em tempo real ──────────────
+        async def on_finding_callback(finding: Finding):
+            finding_dict = finding.to_dict()
+            sev = (finding.severity.value if hasattr(finding.severity, 'value') else str(finding.severity)).upper()
+            
+            # Incrementa métrica Prometheus
+            SCANNER_FINDINGS_TOTAL.labels(severity=sev).inc()
+
+            # Persiste o finding no Redis atomicamente
+            await job_repo.append_finding(job_id, finding_dict)
+            # Propaga via Pub/Sub para todos os WebSockets conectados
+            await _publish(job_id, {
+                "job_id":    job_id,
+                "type":      "finding",
+                "data":      finding_dict,
+                "timestamp": datetime.now(timezone.utc).isoformat()
             })
-            for ws in active_connections[job_id]:
-                asyncio.create_task(ws.send_text(message))
+            logger.info(
+                f"Finding: {finding.severity} — {finding.title}",
+                extra={"job_id": job_id}
+            )
 
-# ================= Memory Cleanup =================
-async def cleanup_old_jobs() -> None:
-    """Remove jobs finalizados com mais de 1 hora para evitar memory leak."""
-    while True:
+        # ── Callback de log em tempo real ──────────────────
+        async def on_log_callback(msg: str):
+            await _publish(job_id, {
+                "job_id":    job_id,
+                "type":      "log",
+                "message":   msg,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+        # ── Callback de eventos de segurança ───────────────
+        async def on_security_event_callback(evt: dict):
+            await _publish(job_id, {
+                "job_id":    job_id,
+                "type":      "security_event",
+                "host":      urlparse(evt["url"]).hostname,
+                "severity":  "INFO",
+                "title":     f"🛡️ Request Blocked: {evt['reason']}",
+                "message":   f"{evt.get('method', 'GET')} {evt['url']}",
+                "category":  evt["category"],
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+        # ── Executa o scanner ──────────────────────────────
+        async with AsyncEngine(
+            concurrency=request.concurrency or MAX_CONCURRENCY,
+            timeout=request.timeout or SCAN_TIMEOUT,
+            on_security_event=on_security_event_callback
+        ) as engine:
+            scanner = Scanner(
+                target=request.target,
+                engine=engine,
+                scan_type=request.scan_type or "full",
+                plugins=request.plugins,
+                on_finding=on_finding_callback,
+                on_log=on_log_callback
+            )
+            result: ScanResult = await scanner.run()
+            summary = result.summary
+
+        # ── Persiste resultado final ───────────────────────
+        await job_repo.update(job_id, {
+            "status":       "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "summary":      summary,
+        })
+        SCANNER_JOBS_TOTAL.labels(status="completed").inc()
+        await _publish(job_id, {
+            "job_id":  job_id,
+            "status":  "completed",
+            "summary": summary
+        })
+        logger.info("Scan completed", extra={"job_id": job_id})
+
+    except asyncio.TimeoutError:
+        logger.error("Scan timed out", extra={"job_id": job_id})
+        await job_repo.update(job_id, {"status": "failed", "error": "Scan timeout exceeded"})
+        SCANNER_JOBS_TOTAL.labels(status="failed").inc()
+        await _publish(job_id, {"job_id": job_id, "status": "failed", "error": "Timeout"})
+
+    except RedisError as e:
+        logger.error(f"Redis error durante scan: {e}", extra={"job_id": job_id})
+        # Não conseguimos persistir, mas o scan pode ter rodado
+
+    except Exception as e:
+        logger.error(f"Scan failed: {e}", exc_info=True, extra={"job_id": job_id})
         try:
-            now = datetime.now(timezone.utc)
-            to_delete = []
-            
-            for job_id, job in jobs.items():
-                created = datetime.fromisoformat(job["created_at"].replace("Z", "+00:00"))
-                if job["status"] in ["completed", "failed"] and (now - created) > timedelta(hours=1):
-                    to_delete.append(job_id)
-                    
-            for job_id in to_delete:
-                del jobs[job_id]
-                # Limpa conexões WebSocket órfãs
-                if job_id in active_connections:
-                    del active_connections[job_id]
-                    
-            if to_delete:
-                logger.info(f"Memory Cleanup: Removed {len(to_delete)} old jobs")
-            
-        except Exception as e:
-            logger.error(f"Error in cleanup_old_jobs: {str(e)}")
-            
-        await asyncio.sleep(300)  # Roda a cada 5 minutos
+            await job_repo.update(job_id, {"status": "failed", "error": str(e)})
+            SCANNER_JOBS_TOTAL.labels(status="failed").inc()
+        except RedisError:
+            pass
+        await _publish(job_id, {"job_id": job_id, "status": "failed", "error": str(e)})
+    finally:
+        SCANNER_ACTIVE_JOBS.dec()
 
-# Inicia o cleanup ao iniciar o app
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(cleanup_old_jobs())
-    logger.info("Application startup: cleanup task scheduled")
 
-# ================= REST Endpoints =================
-@app.post("/api/scan", tags=["Scanner"])
+# ═══════════════════════════════════════════════════════════════
+# REST ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+@app.post("/api/scan", tags=["Scanner"], status_code=202)
 async def create_scan(req: ScanRequest, bg_tasks: BackgroundTasks, user_id: str = Depends(verify_access)):
+    """Cria e enfileira um novo job de scan."""
     job_id = str(uuid.uuid4())
-    
-    # 1. Salva job em dict em memória com status="queued"
-    jobs[job_id] = {
-        "id": job_id,
-        "target": req.target,
-        "ports": req.ports,
-        "status": "queued",
-        "user_id": user_id,
-        "created_at": datetime.now(timezone.utc).isoformat()
+    job_data = {
+        "id":         job_id,
+        "target":     req.target,
+        "ports":      req.ports,
+        "status":     "queued",
+        "user_id":    user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "findings":   [],
     }
-    
-    # 2. Dispara a task de background e engine de scan assíncrona
-    bg_tasks.add_task(execute_scanner_job, job_id, req)
-    
-    logger.info(f"Queued scan job {job_id} for user {user_id}")
-    return {"job_id": job_id, "status": "queued"}
+
+    try:
+        await job_repo.create(job_id, job_data)
+        SCANNER_JOBS_TOTAL.labels(status="queued").inc()
+    except RedisError:
+        return _redis_503()
+
+    bg_tasks.add_task(execute_scanner_job, job_id, req, user_id)
+    logger.info("Scan job queued", extra={"job_id": job_id, "user_id": user_id})
+    return {"job_id": job_id, "status": "queued", "message": "Scan initiated"}
+
+
+@app.get("/api/jobs", tags=["Scanner"])
+async def list_jobs(limit: int = 50, user_id: str = Depends(verify_access)):
+    """Lista os últimos `limit` jobs do usuário autenticado."""
+    try:
+        jobs = await job_repo.list_by_user(user_id, limit=limit)
+    except RedisError:
+        return _redis_503()
+
+    return {
+        "jobs": [
+            {
+                "job_id":     j.get("id"),
+                "target":     j.get("target"),
+                "status":     j.get("status"),
+                "created_at": j.get("created_at"),
+            }
+            for j in jobs
+        ],
+        "total": len(jobs),
+    }
+
 
 @app.get("/api/jobs/{job_id}", tags=["Scanner"])
 async def get_job_status(job_id: str, user_id: str = Depends(verify_access)):
-    if job_id not in jobs:
-        logger.warning(f"User {user_id} requested tracking on non-existent job {job_id}")
+    """Retorna status atual de um job."""
+    try:
+        job = await job_repo.get(job_id)
+    except RedisError:
+        return _redis_503()
+
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-        
-    job = jobs[job_id]
-    
-    # Isolation: only the creator or full API KEY can introspect this job
-    if job["user_id"] != user_id and user_id != "api_key_user":
-        logger.warning(f"Unauthorized introspection attempt by {user_id} on {job_id}")
-        raise HTTPException(status_code=403, detail="Not authorized to access this job")
-        
+
+    if job.get("user_id") != user_id and user_id != "api_key_user":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     return {
-        "job_id": job["id"], 
-        "status": job["status"], 
-        "target": job["target"]
+        "job_id":     job.get("id"),
+        "status":     job.get("status"),
+        "target":     job.get("target"),
+        "created_at": job.get("created_at"),
+        "summary":    job.get("summary"),
     }
 
+
+@app.get("/api/jobs/{job_id}/results", tags=["Scanner"])
+async def get_job_results(job_id: str, user_id: str = Depends(verify_access)):
+    """Retorna resultados completos de um job finalizado."""
+    try:
+        job = await job_repo.get(job_id)
+    except RedisError:
+        return _redis_503()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("user_id") != user_id and user_id != "api_key_user":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if job.get("status") not in ("completed", "failed"):
+        raise HTTPException(status_code=400, detail="Scan not finished yet")
+
+    return {
+        "job_id":   job.get("id"),
+        "target":   job.get("target"),
+        "status":   job.get("status"),
+        "error":    job.get("error"),
+        "summary":  job.get("summary"),
+        "findings": job.get("findings", []),
+    }
+
+
+@app.get("/api/jobs/{job_id}/export", tags=["Scanner"])
+async def export_job(job_id: str, user_id: str = Depends(verify_access)):
+    """Exporta JSON completo do job para download."""
+    try:
+        job = await job_repo.get(job_id)
+    except RedisError:
+        return _redis_503()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("user_id") != user_id and user_id != "api_key_user":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    content = json.dumps(job, ensure_ascii=False, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="job_{job_id}.json"'},
+    )
+
+
+@app.delete("/api/jobs/{job_id}", tags=["Scanner"])
+async def delete_job(job_id: str, user_id: str = Depends(verify_access)):
+    """Remove job do Redis (apenas owner ou api_key_user)."""
+    try:
+        job = await job_repo.get(job_id)
+    except RedisError:
+        return _redis_503()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("user_id") != user_id and user_id != "api_key_user":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    try:
+        await job_repo.delete(job_id, job.get("user_id", user_id))
+    except RedisError:
+        return _redis_503()
+
+    return {"message": "Job removed", "job_id": job_id}
+
+
+# ── Health check com Redis ───────────────────────────────────
 @app.get("/health", tags=["System"])
 async def health_check():
-    """Returns application health parameters."""
-    return {
-        "status": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+    redis_ok, redis_ms = await ping_redis()
+    response = {
+        "status":          "ok" if redis_ok else "degraded",
+        "timestamp":       datetime.now(timezone.utc).isoformat(),
+        "scanner_engine":  "available" if SCANNER_AVAILABLE else "unavailable",
+        "redis_status":    "connected" if redis_ok else "disconnected",
+        "redis_latency_ms": redis_ms,
     }
+    if not redis_ok:
+        return JSONResponse(
+            status_code=503,
+            content=response,
+            headers={"Retry-After": "10"},
+        )
+    return response
 
+
+# ── Prometheus-style metrics ─────────────────────────────────
 @app.get("/metrics", response_class=PlainTextResponse, tags=["System"])
 async def get_metrics():
-    """Generates Prometheus formatted metric outputs for active jobs."""
-    metrics_lines = []
-    
-    # Extract only running jobs
-    active_jobs = {k: v for k, v in jobs.items() if v["status"] == "running"}
-    
-    metrics_lines.append("# HELP scanner_active_jobs Number of currently running scan sequences")
-    metrics_lines.append("# TYPE scanner_active_jobs Gauge")
-    
-    if not active_jobs:
-        metrics_lines.append('scanner_active_jobs 0')
-    else:
-        for j_id in active_jobs:
-            metrics_lines.append(f'scanner_active_jobs {{job_id="{j_id}"}} 1')
-            
-    return "\n".join(metrics_lines) + "\n"
+    """Exporta métricas no formato Prometheus (Standard + Custom Redis)."""
+    try:
+        # Pega métricas do prometheus_client (histograms, active jobs, etc)
+        metrics_data = generate_latest().decode("utf-8")
+        
+        # Pega métricas reais persistidas no Redis (Jobs totais por status)
+        stats = await job_repo.get_stats()
+        redis_metrics = [
+            "# HELP scanner_jobs_total Total jobs by status (from Redis)",
+            "# TYPE scanner_jobs_total counter"
+        ]
+        for status in ("queued", "running", "completed", "failed"):
+            val = stats.get(status, 0)
+            redis_metrics.append(f'scanner_jobs_total{{status="{status}"}} {val}')
+        
+        return PlainTextResponse(metrics_data + "\n" + "\n".join(redis_metrics) + "\n", media_type=CONTENT_TYPE_LATEST)
+    except Exception as e:
+        logger.error(f"Error generating metrics: {e}")
+        return PlainTextResponse(f"# Error: {e}", status_code=500)
 
-# ================= WebSocket Endpoint =================
+
+# ═══════════════════════════════════════════════════════════════
+# WEBSOCKET ENDPOINT — Subscribe ao canal Redis Pub/Sub
+# Cada instância do app cria um subscriber independente,
+# permitindo escalonamento horizontal com múltiplos workers.
+# ═══════════════════════════════════════════════════════════════
 @app.websocket("/ws/logs/{job_id}")
 async def websocket_logs(websocket: WebSocket, job_id: str):
-    """
-    WebSocket endpoint com autenticação JWT obrigatória no handshake.
-    Fecha conexão com code 1008 se token inválido (Policy Violation).
-    """
+    await websocket.accept()
+
     try:
-        # 1. Aguarda primeira mensagem com token
-        auth_message = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
-        auth_data = json.loads(auth_message)
-        
-        if "token" not in auth_data:
-            await websocket.close(code=1008, reason="Missing token")
-            return
-            
-        token = auth_data["token"]
-        
-        # 2. Valida token (mesma lógica do verify_access)
+        # ── Auth handshake (primeira mensagem deve ser {"token": "..."}) ──
+        auth_raw  = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
+        auth_data = json.loads(auth_raw)
+        token     = auth_data.get("token", "")
+
         user_id = None
-        
-        # Check API Key first
         if token == API_KEY_SECRET:
             user_id = "api_key_user"
         else:
             try:
-                payload_dict = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
-                payload = JWTPayload(**payload_dict)
+                pd = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
+                payload = JWTPayload(**pd)
+                if not payload.is_valid():
+                    raise ValueError("expired")
                 user_id = payload.sub
-            except (JWTError, ValidationError):
-                logger.warning(f"WebSocket auth failed for job {job_id}")
+            except Exception:
                 await websocket.close(code=1008, reason="Invalid token")
                 return
-        
-        # 3. Verifica se usuário tem acesso ao job
-        if job_id in jobs and jobs[job_id]["user_id"] != user_id and user_id != "api_key_user":
-            logger.warning(f"User {user_id} tried to access unauthorized job {job_id}")
-            await websocket.close(code=1008, reason="Unauthorized")
+
+        # ── Verifica autorização para o job ───────────────
+        try:
+            job = await job_repo.get(job_id)
+        except RedisError:
+            await websocket.close(code=1011, reason="Redis unavailable")
             return
-            
-        # 4. Aceita conexão e registra cliente
-        await websocket.accept()
-        
-        if job_id not in active_connections:
-            active_connections[job_id] = []
-        active_connections[job_id].append(websocket)
-        
-        logger.info(f"WebSocket connected for job {job_id} by user {user_id}")
-        
-        # 5. Mantém conexão viva (heartbeats são enviados pelo broadcaster)
-        while True:
-            # Opcional: receber mensagens do cliente (ex: pause/resume)
-            await websocket.receive_text()
-            
+
+        if job and job.get("user_id") != user_id and user_id != "api_key_user":
+            await websocket.close(code=1008, reason="Unauthorized for this job")
+            return
+
+        logger.info(f"WS connected — subscribing to {_ws_channel(job_id)}", extra={"job_id": job_id})
+
+        # ── Cria subscriber Redis dedicado para este WS ───
+        pubsub = get_redis().pubsub()
+        await pubsub.subscribe(_ws_channel(job_id))
+
+        async def _forward_messages():
+            """Lê mensagens do canal Pub/Sub e envia para o WebSocket."""
+            async for msg in pubsub.listen():
+                if msg["type"] == "message":
+                    try:
+                        await websocket.send_text(msg["data"])
+                    except Exception:
+                        break
+
+        async def _heartbeat():
+            """Mantém a conexão viva enviando pings periódicos."""
+            try:
+                while True:
+                    await asyncio.sleep(20)
+                    await websocket.send_json({"type": "ping", "timestamp": datetime.now(timezone.utc).isoformat()})
+            except Exception:
+                pass
+
+        # ── Executa tarefas em background ──────────────
+        forward_task   = asyncio.create_task(_forward_messages())
+        heartbeat_task = asyncio.create_task(_heartbeat())
+
+        try:
+            # Mantém conexão viva; encerra quando cliente desconectar
+            while True:
+                await websocket.receive_text()
+        except WebSocketDisconnect as e:
+            logger.info(f"WS disconnected: job_id={job_id}, code={e.code}, reason={e.reason or 'none'}")
+        except Exception as e:
+            logger.warning(f"WS error during receive: {e}")
+        finally:
+            forward_task.cancel()
+            heartbeat_task.cancel()
+            await pubsub.unsubscribe(_ws_channel(job_id))
+            await pubsub.close()
+
     except asyncio.TimeoutError:
         await websocket.close(code=1008, reason="Auth timeout")
     except WebSocketDisconnect:
-        if job_id in active_connections and websocket in active_connections[job_id]:
-            active_connections[job_id].remove(websocket)
-            if not active_connections[job_id]:
-                del active_connections[job_id]
-        logger.info(f"WebSocket disconnected for job {job_id}")
+        pass
     except Exception as e:
-        logger.error(f"WebSocket error for job {job_id}: {str(e)}")
+        logger.error(f"WebSocket error: {e}")
         try:
-            await websocket.close(code=1011, reason="Internal error")
-        except:
+            await websocket.close(code=1011)
+        except Exception:
             pass
 
+
+# ═══════════════════════════════════════════════════════════════
+# STARTUP / SHUTDOWN
+# ═══════════════════════════════════════════════════════════════
+@app.on_event("startup")
+async def startup():
+    redis_ok, ms = await ping_redis()
+    if redis_ok:
+        logger.info(f"🚀 SaaS Scanner Pro v2.0 iniciado — Redis OK ({ms}ms)")
+    else:
+        logger.warning("🚀 SaaS Scanner Pro iniciado — Redis INDISPONÍVEL (modo degraded)")
+
+    # Inicia tarefa periódica de limpeza de índices Redis
+    asyncio.create_task(_cleanup_loop())
+
+
+async def _cleanup_loop():
+    """Limpa índices Redis obsoletos a cada 10 minutos."""
+    while True:
+        await asyncio.sleep(600)
+        try:
+            removed = await job_repo.cleanup_expired()
+            if removed:
+                logger.info(f"Cleanup: {removed} entradas de índice removidas")
+        except Exception as e:
+            logger.error(f"Cleanup error: {e}")
+
+
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=os.getenv("ENV") != "production")

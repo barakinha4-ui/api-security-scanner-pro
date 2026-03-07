@@ -5,6 +5,10 @@ services:
     build: .
     command: gunicorn app:app -k uvicorn.workers.UvicornWorker --workers 4 --bind 0.0.0.0:8000
     env_file: .env
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - "8000:8000"
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
       interval: 30s
@@ -31,6 +35,63 @@ services:
       timeout: 5s
       retries: 3
     restart: always
+
+  # Prometheus: Coleta e armazena métricas
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: scanner-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - internal_net
+      - frontend_net
+    restart: unless-stopped
+
+  # Grafana: Visualização dos dashboards
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: scanner-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana_dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./monitoring/grafana_dashboard.json:/etc/grafana/provisioning/dashboards/scanner_dashboard.json
+      - ./monitoring/grafana_datasources.yml:/etc/grafana/provisioning/datasources/prometheus.yml
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Troque em produção!
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - internal_net
+      - frontend_net
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Exportador de métricas do Redis (opcional mas recomendado)
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0-alpine
+    container_name: scanner-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis:6379
+    networks:
+      - internal_net
+    depends_on:
+      - redis
+    restart: unless-stopped
 
   nginx:
     image: nginx:1.25-alpine
@@ -62,3 +123,5 @@ networks:
 
 volumes:
   redis_data:
+  prometheus_data:
+  grafana_data:

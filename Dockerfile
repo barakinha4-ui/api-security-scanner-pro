@@ -12,6 +12,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies for WeasyPrint + curl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy installed packages from builder
 COPY --from=builder /root/.local /root/.local
 
@@ -21,8 +30,5 @@ COPY . .
 # Add python packages to PATH
 ENV PATH=/root/.local/bin:$PATH
 
-# Define entrypoint to run the CLI directly
-ENTRYPOINT ["python", "src/apiscanner/cli.py"]
-
-# Default command if none provided
-CMD ["--help"]
+# Use CMD instead of ENTRYPOINT to allow docker-compose to override easily
+CMD ["python", "src/apiscanner/cli.py", "--help"]

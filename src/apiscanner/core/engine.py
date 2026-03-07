@@ -11,18 +11,25 @@ import ssl
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Coroutine
 from urllib.parse import urlparse
 import ipaddress
 
 import httpx
 from core.logger import logger
+from core.metrics import RATE_LIMITED_REQS_TOTAL
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 _USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "PostmanRuntime/7.36.1",
     "curl/8.6.0",
 ]
@@ -81,6 +88,7 @@ class AsyncEngine:
         proxy:        Optional[str] = None,
         dry_run:      bool  = False,
         allow_internal: bool = False, # SSRF Protection Toggle
+        on_security_event: Optional[Callable[[Dict[str, Any]], Coroutine[Any, Any, None]]] = None,
     ):
         self.concurrency   = min(concurrency, 50) # Boundary Estrito
         self.timeout       = timeout
@@ -97,6 +105,7 @@ class AsyncEngine:
         _cfg = ScannerConfig()
         self.rate_limit_per_minute = _cfg.rate_limit_per_minute
         self.allow_internal = allow_internal or _cfg.allow_private_targets
+        self.on_security_event = on_security_event
         
         self._rate_limits: Dict[str, int] = {}
         self._rate_limit_start: Dict[str, float] = {}
@@ -106,10 +115,15 @@ class AsyncEngine:
         self._req_count    = 0
         self._err_count    = 0
         self._lock         = asyncio.Lock()
-
-        # WAF state
+        
+        # Rate Limiting Dinâmico
+        self._host_requests: Dict[str, List[float]] = {} # timestamps das últimas reqs por host
+        self._global_requests: List[float] = [] # timestamps globais
+        
+        # WAF state & Evasion
         self.waf_name:       Optional[str] = None
         self.waf_confidence: float          = 0.0
+        self.consecutive_errors: Dict[str, int] = {} # host -> errors (403/429)
 
     async def __aenter__(self):
         limits = httpx.Limits(max_connections=self.concurrency, max_keepalive_connections=10)
@@ -137,7 +151,7 @@ class AsyncEngine:
             return res
         return data
 
-    def _is_ssrf_risk(self, url: str) -> bool:
+    async def _is_ssrf_risk(self, url: str) -> bool:
         """Checks if URL points to internal/private infrastructure."""
         if self.allow_internal:
             return False
@@ -149,15 +163,22 @@ class AsyncEngine:
                 return True # Malformed
             
             # Resolve IP
-            ip_addr = socket.gethostbyname(hostname)
+            ip_addr = await asyncio.get_event_loop().run_in_executor(None, socket.gethostbyname, hostname)
             ip = ipaddress.ip_address(ip_addr)
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
-                logger.error(f"Target blocked by SSRF Shield: {ip} is internal/private (e.g. 10.0.0.0/8, 192.168.0.0/16).")
+                reason = f"{ip} is internal/private (SSRF Shield)"
+                logger.error(f"Target blocked: {reason}")
+                if self.on_security_event:
+                    await self.on_security_event({
+                        "url": url,
+                        "reason": reason,
+                        "category": "ssrf_blocked"
+                    })
                 return True
             return False
-        except Exception:
-            logger.error(f"SSRF Shield error resolving hostname for {url}. Blocking by default.")
-            return True # If it can't be resolved or parsed safely, block it
+        except Exception as e:
+            logger.error(f"SSRF Shield error resolving {url}: {e}")
+            return True
 
     def _get_headers(self, extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
         h = {"User-Agent": random.choice(_USER_AGENTS), "Accept": "*/*"}
@@ -181,25 +202,47 @@ class AsyncEngine:
         - Pool de workers otimizado com controle via Semáforo 
         - Telemetria de log estruturada
         """
-        if self._is_ssrf_risk(url):
+        if await self._is_ssrf_risk(url):
             logger.warning(f"SSRF Prevention: Blocked request to internal target -> {url}")
             return Response(url=url, method=method, error="SSRF_PROTECTION_TRIGGERED")
 
-        # Global Rate Limit check
+        # Global & Host Rate Limit check (Advanced)
         async with self._lock:
-            target_ip = urlparse(url).hostname or "unknown"
-            now = time.perf_counter()
-            start = self._rate_limit_start.get(target_ip, now)
-            count = self._rate_limits.get(target_ip, 0)
+            target_host = urlparse(url).hostname or "unknown"
+            now = time.time()
             
-            if now - start > 60:
-                self._rate_limit_start[target_ip] = now
-                self._rate_limits[target_ip] = 1
-            else:
-                if count >= self.rate_limit_per_minute:
-                    logger.error(f"Rate Limit Shield: Dropping {method} {url} - Exceeded {self.rate_limit_per_minute} req/min.")
-                    return Response(url=url, method=method, error="RATE_LIMIT_TRIGGERED")
-                self._rate_limits[target_ip] = count + 1
+            # ── 1. Limite por Host (10 req/s) ──
+            if target_host not in self._host_requests:
+                self._host_requests[target_host] = []
+            
+            # Limpa timestamps antigos (> 1s)
+            self._host_requests[target_host] = [t for t in self._host_requests[target_host] if now - t < 1.0]
+            
+            if len(self._host_requests[target_host]) >= 10:
+                logger.warning(f"Internal Rate Limit (Host): Pausing 1s for {target_host}")
+                RATE_LIMITED_REQS_TOTAL.labels(source="internal_host").inc()
+                await asyncio.sleep(1.0)
+                now = time.time() # Atualiza tempo após pausa
+            
+            self._host_requests[target_host].append(now)
+
+            # ── 2. Limite Global (30 req/min) ──
+            # Limpa timestamps antigos (> 60s)
+            self._global_requests = [t for t in self._global_requests if now - t < 60.0]
+            
+            if len(self._global_requests) >= 30:
+                logger.warning(f"Internal Rate Limit (Global): Exceeded 30 rpm. Pausing...")
+                RATE_LIMITED_REQS_TOTAL.labels(source="internal_global").inc()
+                await asyncio.sleep(2.0) # Pausa estratégica
+                now = time.time()
+            
+            self._global_requests.append(now)
+
+            # ── 3. Evasão de WAF (Consecutive 403/429) ──
+            if self.consecutive_errors.get(target_host, 0) >= 3:
+                reason = f"WAF/Rate Limit detected: Skipping {target_host} after 3 consecutive blocks"
+                logger.error(reason)
+                return Response(url=url, method=method, error="WAF_BLOCK_ESTABLISHED")
 
         async with self._semaphore:
             if self.base_delay > 0:
@@ -269,6 +312,15 @@ class AsyncEngine:
                     self._req_count += 1
                 
                 self._detect_waf_passive(resp)
+                
+                # Controle de Erros Consecutivos (Evasion)
+                if resp.status in (403, 429):
+                    RATE_LIMITED_REQS_TOTAL.labels(source="external_waf").inc()
+                    async with self._lock:
+                        self.consecutive_errors[target_host] = self.consecutive_errors.get(target_host, 0) + 1
+                elif resp.ok:
+                    async with self._lock:
+                        self.consecutive_errors[target_host] = 0 # Reset ao ter sucesso
                 
                 logger.info(f"[Task-{task_id}] [Host: {target_host}] {method} {url} - Status: {resp.status} - Time: {elapsed:.2f}ms (Attempt {attempt}/{self.max_retries})")
                 

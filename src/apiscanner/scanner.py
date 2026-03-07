@@ -16,6 +16,9 @@ from core.oast import OASTIntegration
 from scanner_config import ScannerConfig
 from core.logger import logger
 from core.ui import C, c
+from core.metrics import SCAN_PHASE_DURATION, ACTIVE_SCANS_PER_TARGET
+from core.reports import ReportGenerator
+from core.metrics import SCAN_PHASE_DURATION, ACTIVE_SCANS_PER_TARGET
 
 # Preset scan profiles
 PRESETS: Dict[str, List[str]] = {
@@ -41,6 +44,7 @@ class Scanner:
         plugins:   Optional[List[str]]     = None,
         config:    Optional[ScannerConfig] = None,
         on_finding: Optional[Callable[[Any], None]] = None,
+        on_log:     Optional[Callable[[str], None]] = None,
         dry_run:     bool = False,
         ws_clients: Optional[set] = None,
     ):
@@ -54,6 +58,7 @@ class Scanner:
             plugins: Specific list of plugins.
             config: Configuration object.
             on_finding: Live result callback.
+            on_log: Live progress callback.
             dry_run: Simulation mode.
         """
         self.target      = target.rstrip("/")
@@ -62,10 +67,20 @@ class Scanner:
         self.plugins     = plugins
         self.config_obj  = config or ScannerConfig()
         self.on_finding  = on_finding
+        self.on_log      = on_log
         self.dry_run     = dry_run
         self.ws_clients  = ws_clients or set()
         
         self.oast = OASTIntegration(self.engine, provider=self.config_obj.oast_provider or "interact.sh")
+
+    async def _log(self, message: str):
+        """Helper to print to console and send to callback."""
+        print(message)
+        if self.on_log:
+            if asyncio.iscoroutinefunction(self.on_log):
+                await self.on_log(message)
+            else:
+                self.on_log(message)
 
     @property
     def plugin_names(self) -> List[str]:
@@ -94,30 +109,33 @@ class Scanner:
         Registry.discover()
 
         # Phase 1: Recon
-        print("\n  [1/3] Reconnaissance …")
-        tech = await self.engine.fingerprint(self.target)
-        result.waf_detected = self.engine.waf_name
-        result.technologies = tech
+        await self._log(f"\n  {C.CYAN}[1/3]{C.RESET} Reconnaissance …")
+        with SCAN_PHASE_DURATION.labels(phase="recon").time():
+            tech = await self.engine.fingerprint(self.target)
+            result.waf_detected = self.engine.waf_name
+            result.technologies = tech
 
         # Phase 2: Discovery
-        print("  [2/3] Discovery …")
+        await self._log(f"  {C.CYAN}[2/3]{C.RESET} Discovery …")
         if "discovery" in self.plugin_names:
-            disc = Registry.instantiate("discovery", self.engine, self.config_obj.dict(), self.oast)
-            if disc:
-                await disc.run(self.target, result)
+            with SCAN_PHASE_DURATION.labels(phase="discovery").time():
+                disc = Registry.instantiate("discovery", self.engine, self.config_obj.dict(), self.oast)
+                if disc:
+                    await disc.run(self.target, result)
 
         # Phase 3: Attacks
-        print("  [3/3] Security Analysis …")
+        await self._log(f"  {C.CYAN}[3/3]{C.RESET} Security Analysis …")
         attack_plugins = [n for n in self.plugin_names if n != "discovery"]
         instances = []
         for name in attack_plugins:
             p = Registry.instantiate(name, self.engine, self.config_obj.dict(), self.oast)
             if p: instances.append(p)
 
-        results = await asyncio.gather(
-            *[p.run(self.target, result) for p in instances],
-            return_exceptions=True
-        )
+        with SCAN_PHASE_DURATION.labels(phase="security_analysis").time():
+            results = await asyncio.gather(
+                *[p.run(self.target, result) for p in instances],
+                return_exceptions=True
+            )
 
         for findings in results:
             if isinstance(findings, list):
@@ -145,4 +163,18 @@ class Scanner:
         result.duration_seconds = (end_time - start_dt).total_seconds()
         
         result.total_requests = self.engine.request_count
+        
+        # Gera relatórios finais (HTML e PDF se WeasyPrint disponível)
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            template_path = os.path.join(base_dir, "templates")
+            generator = ReportGenerator(template_path)
+            
+            report_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            generator.export(result, report_name)
+            await self._log(f"  {C.GREEN}✔{C.RESET} Relatório gerado com sucesso: {report_name}")
+        except Exception as e:
+            logger.error(f"Erro ao gerar relatório: {e}")
+            await self._log(f"  {C.RED}✘{C.RESET} Falha ao gerar relatório: {e}")
+
         return result

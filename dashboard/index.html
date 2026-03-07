@@ -343,14 +343,17 @@
             document.getElementById('executeScanBtn').textContent = 'INITIALIZING...';
 
             try {
-                const res = await fetch(`${API_BASE}/scans`, {
+                const res = await fetch(`${API_BASE}/api/scan`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
-                    body: JSON.stringify({ target, scan_type: profile, threads: parseInt(threads) })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({ target, scan_type: profile, concurrency: parseInt(threads) })
                 });
 
-                if (res.status === 403) {
-                    alert('Invalid API Key. Please refresh and try again.');
+                if (res.status === 401 || res.status === 403) {
+                    alert('Invalid API Key or Session. Please login again.');
                     localStorage.removeItem('audit_pro_key');
                     window.location.reload();
                     return;
@@ -361,7 +364,7 @@
                 document.getElementById('executeScanBtn').disabled = false;
                 document.getElementById('executeScanBtn').textContent = 'REQUEST MISSION';
 
-                startLiveTracking(data.scan_id, target);
+                startLiveTracking(data.job_id, target);
             } catch (e) {
                 alert('Scan launch failed. Check console.');
                 document.getElementById('executeScanBtn').disabled = false;
@@ -370,7 +373,7 @@
         };
 
         // --- WebSocket Live Tracking ---
-        function startLiveTracking(scanId, target) {
+        function startLiveTracking(jobId, target) {
             if (currentSocket) currentSocket.close();
 
             // UI Reset
@@ -379,23 +382,35 @@
             document.getElementById('wafName').textContent = 'Probing...';
             resetStats();
 
-            const wsUrl = `ws://localhost:8000/ws/${scanId}`;
+            const wsUrl = `${API_BASE.replace('http', 'ws')}/ws/logs/${jobId}`;
             currentSocket = new WebSocket(wsUrl);
 
             document.getElementById('liveIndicator').classList.remove('hidden');
-            logEvent('ENGINE', `Establishing Socket for Scan ID ${scanId}`);
+            logEvent('ENGINE', `Establishing Socket for Job ID ${jobId}`);
+
+            currentSocket.onopen = () => {
+                // Handshake: Enviar token na primeira mensagem
+                currentSocket.send(JSON.stringify({ token: API_KEY }));
+                logEvent('AUTH', 'Handshake sent to WebSocket');
+            };
 
             currentSocket.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
 
-                if (msg.type === 'status') {
-                    logEvent('STATUS', `Scan state changed to: ${msg.data.toUpperCase()}`);
-                    if (msg.data === 'completed') {
-                        document.getElementById('liveIndicator').classList.add('hidden');
-                        logEvent('SUCCESS', 'Audit mission accomplished');
+                if (msg.status === 'running') {
+                    logEvent('STATUS', 'Scan is now RUNNING');
+                } else if (msg.status === 'completed') {
+                    document.getElementById('liveIndicator').classList.add('hidden');
+                    logEvent('SUCCESS', 'Audit mission accomplished');
+                    if (msg.summary) {
+                        // Opcional: atualizar UI com sumário final
+                        updateFinalSummaryUI(msg.summary);
                     }
                 } else if (msg.type === 'finding') {
                     addFinding(msg.data);
+                } else if (msg.status === 'failed') {
+                    document.getElementById('liveIndicator').classList.add('hidden');
+                    logEvent('ERROR', `Scan failed: ${msg.error || 'Unknown error'}`);
                 }
             };
 
@@ -403,6 +418,15 @@
                 document.getElementById('liveIndicator').classList.add('hidden');
                 logEvent('ENGINE', 'Socket connection closed');
             };
+        }
+
+        function updateFinalSummaryUI(summary) {
+            // Atualizando contadores de forma explícita se disponíveis
+            if (summary.findings_count !== undefined) stats.findings = summary.findings_count;
+            if (summary.critical !== undefined) stats.critical = summary.critical;
+            if (summary.endpoints_found !== undefined) stats.endpoints = summary.endpoints_found;
+            if (summary.waf_detected) document.getElementById('wafName').textContent = summary.waf_detected;
+            updateStatsUI();
         }
 
         // --- UI Modifiers ---

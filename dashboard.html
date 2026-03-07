@@ -4,843 +4,1457 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SaaS Security Scanner - Live Report</title>
-    <!-- Fontes Modernas -->
+    <title>SAAS SCANNER PRO // SOC CYBER EDITION</title>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
         rel="stylesheet">
     <style>
-        /* 
-          GLASSMORPHISM DARK MODE NEON
-          Variáveis Base de Interface 
-        */
+        /* === TOKENS ============================================================ */
         :root {
-            --bg-dark: #0f0f1a;
-            --glass-bg: rgba(20, 20, 35, 0.4);
-            --glass-border: rgba(0, 245, 255, 0.2);
-            --cyan-neon: #00f5ff;
-            --cyan-glow: rgba(0, 245, 255, 0.6);
-            --text-main: #f0f4f8;
-            --text-muted: #8b94a5;
-
-            /* Indicadores de Severidade e Status */
-            --status-connected: #00ff88;
-            --status-disconnected: #ff2a55;
-            --status-connecting: #ffb800;
-
-            --sev-critical: #ff2a55;
-            --sev-high: #ff8c00;
-            --sev-medium: #ffcc00;
-            --sev-low: #8b94a5;
-
-            --font-sans: 'Inter', system-ui, sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
+            --bg: #0A0A0A;
+            --bg2: #101015;
+            --bg3: #14141A;
+            --cyan: #00FFFF;
+            --magenta: #FF00FF;
+            --red: #FF0044;
+            --green: #00FF9F;
+            --yellow: #F5FF00;
+            --text: #DDEAFF;
+            --dim: #44475a;
+            --border: rgba(255, 255, 255, 0.06);
+            --gcyan: 0 0 12px rgba(0, 255, 255, 0.35);
+            --gred: 0 0 12px rgba(255, 0, 68, 0.35);
+            --ggreen: 0 0 12px rgba(0, 255, 159, 0.35);
+            --font-ui: 'Inter', system-ui, sans-serif;
+            --font-code: 'JetBrains Mono', monospace;
         }
 
-        * {
+        /* === RESET ============================================================= */
+        *,
+        *::before,
+        *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        html,
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            font-family: var(--font-sans);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-ui);
+        }
+
+        /* === GRID BG PATTERN ================================================== */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
             background-image:
-                radial-gradient(circle at 15% 50%, rgba(0, 245, 255, 0.05), transparent 30%),
-                radial-gradient(circle at 85% 30%, rgba(255, 42, 85, 0.03), transparent 35%);
+                linear-gradient(rgba(0, 255, 255, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.025) 1px, transparent 1px);
+            background-size: 50px 50px;
         }
 
-        /* Utils Glassmorphism */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        /* === LAYOUT ============================================================ */
+        .app {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-rows: 58px 1fr;
+            height: 100vh;
+            gap: 0;
         }
 
-        /* 
-          ==========================
-          HEADER E CONTROLES
-          ==========================
-        */
+        .body {
+            display: grid;
+            grid-template-columns: 300px 1fr 280px;
+            gap: 12px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        /* === HEADER ============================================================ */
         header {
-            padding: 1.5rem 2rem;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--glass-border);
-            background: rgba(15, 15, 26, 0.8);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
+            justify-content: space-between;
+            padding: 0 20px;
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 12px;
         }
 
-        .title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            text-transform: uppercase;
-        }
-
-        .title-accent {
-            color: var(--cyan-neon);
-            text-shadow: 0 0 10px var(--cyan-glow);
-        }
-
-        .conn-controls {
+        .brand-icon {
+            width: 34px;
+            height: 34px;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 255, 255, 0.05));
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            border-radius: 6px;
             display: flex;
-            gap: 1rem;
             align-items: center;
+            justify-content: center;
+            box-shadow: var(--gcyan);
+            font-size: 1rem;
         }
 
-        input {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            padding: 0.6rem 1rem;
-            border-radius: 6px;
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            width: 250px;
-            transition: 0.3s;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--cyan-neon);
-            box-shadow: 0 0 8px var(--cyan-glow);
-        }
-
-        button {
-            background: rgba(0, 245, 255, 0.1);
-            color: var(--cyan-neon);
-            border: 1px solid var(--cyan-neon);
-            padding: 0.6rem 1.5rem;
-            border-radius: 6px;
-            font-weight: 600;
-            font-family: var(--font-sans);
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .brand-name {
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.85rem;
+            color: var(--text);
         }
 
-        button:hover {
-            background: var(--cyan-neon);
-            color: #000;
-            box-shadow: 0 0 15px var(--cyan-glow);
+        .brand-name em {
+            color: var(--cyan);
+            font-style: normal;
+            text-shadow: var(--gcyan);
         }
 
-        /* Indicador de Status Visual */
-        #status-indicator {
+        .brand-sub {
+            font-size: 0.6rem;
+            color: var(--dim);
+            letter-spacing: 3px;
+            margin-top: 1px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .time-display {
+            font-family: var(--font-code);
+            font-size: 0.75rem;
+            color: var(--dim);
+        }
+
+        /* WS Badge */
+        .ws-badge {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 0.4rem 1rem;
+            padding: 5px 14px;
             border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .ws-badge.connected {
+            color: var(--green);
+            border-color: rgba(0, 255, 159, 0.4);
+            box-shadow: var(--ggreen);
+        }
+
+        .ws-badge.connecting {
+            color: var(--yellow);
+            border-color: rgba(245, 255, 0, 0.4);
+            animation: blink 0.8s infinite alternate;
+        }
+
+        .ws-badge.disconnected {
+            color: var(--red);
+            border-color: rgba(255, 0, 68, 0.4);
         }
 
         .led {
-            width: 10px;
-            height: 10px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            transition: 0.3s;
+            background: currentColor;
+            box-shadow: 0 0 6px currentColor;
         }
 
-        .state-disconnected .led {
-            background: var(--status-disconnected);
-            box-shadow: 0 0 10px var(--status-disconnected);
+        @keyframes blink {
+            to {
+                opacity: 0.25;
+            }
         }
 
-        .state-disconnected span {
-            color: var(--status-disconnected);
+        /* === LEFT SIDEBAR ====================================================== */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
         }
 
-        .state-connected .led {
-            background: var(--status-connected);
-            box-shadow: 0 0 10px var(--status-connected);
+        .card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.3s;
         }
 
-        .state-connected span {
-            color: var(--status-connected);
+        .card:hover {
+            border-color: rgba(0, 255, 255, 0.15);
         }
 
-        .state-connecting .led {
-            background: var(--status-connecting);
-            box-shadow: 0 0 10px var(--status-connecting);
-            animation: blink 1s infinite alternate;
+        .card-hdr {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 2.5px;
+            color: var(--dim);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .state-connecting span {
-            color: var(--status-connecting);
+        .card-hdr span {
+            font-size: 0.8rem;
         }
 
-        /* 
-          ==========================
-          LAYOUT PRINCIPAL
-          ==========================
-        */
-        main {
-            padding: 2rem;
-            flex: 1;
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 2rem;
-            max-width: 1600px;
-            margin: 0 auto;
+        /* Form */
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .field label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--cyan);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input,
+        select {
+            background: #050510;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 9px 12px;
+            border-radius: 4px;
+            font-family: var(--font-code);
+            font-size: 0.75rem;
             width: 100%;
+            transition: 0.25s;
         }
 
-        /* Grid Lateral (Stats) */
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.1);
+        }
+
+        select option {
+            background: #101015;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 11px;
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.25s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 255, 255, 0.05));
+            color: var(--cyan);
+            border: 1px solid rgba(0, 255, 255, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: var(--cyan);
+            color: #000;
+            box-shadow: var(--gcyan);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--dim);
+            border: 1px solid var(--border);
+            margin-top: 6px;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Stats */
         .stats-grid {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
+            gap: 8px;
         }
 
-        .stat-card {
-            padding: 1.5rem;
+        .stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--bg3);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--dim);
+            transition: all 0.3s;
+        }
+
+        .stat.cyan {
+            border-left-color: var(--cyan);
+        }
+
+        .stat.red {
+            border-left-color: var(--red);
+        }
+
+        .stat.green {
+            border-left-color: var(--green);
+        }
+
+        .stat.mag {
+            border-left-color: var(--magenta);
+        }
+
+        .stat:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .stat-info {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-val {
+            font-family: var(--font-code);
+            font-size: 1.6rem;
+            font-weight: 700;
+            line-height: 1.1;
+            transition: color 0.3s;
+        }
+
+        .stat-val.cyan {
+            color: var(--cyan);
+            text-shadow: var(--gcyan);
+        }
+
+        .stat-val.red {
+            color: var(--red);
+            text-shadow: var(--gred);
+        }
+
+        .stat-val.green {
+            color: var(--green);
+            text-shadow: var(--ggreen);
+        }
+
+        .stat-val.mag {
+            color: var(--magenta);
+        }
+
+        /* === MAIN PANEL ======================================================== */
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px;
+            flex-shrink: 0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--dim);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .tab:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab.active {
+            background: rgba(0, 255, 255, 0.12);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: var(--gcyan);
+        }
+
+        .tab svg {
+            flex-shrink: 0;
+        }
+
+        /* PANES */
+        .pane {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .pane.active {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* === PHASE PROGRESS ==================================================== */
+        .phase-bar {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            flex-shrink: 0;
+        }
+
+        .phase-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .phase-lbl {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: color 0.5s;
+        }
+
+        .phase-lbl.done {
+            color: var(--cyan);
+            text-shadow: var(--gcyan);
+        }
+
+        .phase-lbl.active-phase {
+            color: var(--green);
+            text-shadow: var(--ggreen);
+        }
+
+        .pb-track {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .pb-seg {
+            height: 100%;
+            width: 0;
+            transition: width 1s ease;
             position: relative;
             overflow: hidden;
         }
 
-        .stat-card::before {
+        .pb-seg::after {
             content: '';
             position: absolute;
             top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--text-muted);
+            left: -100%;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: shimmer 2s infinite;
         }
 
-        .stat-card.neon-cyan::before {
-            background: var(--cyan-neon);
-            box-shadow: 0 0 10px var(--cyan-glow);
+        @keyframes shimmer {
+            to {
+                left: 200%;
+            }
         }
 
-        .stat-card.neon-red::before {
-            background: var(--sev-critical);
-            box-shadow: 0 0 10px var(--sev-critical);
+        .pb-recon {
+            background: linear-gradient(90deg, var(--magenta), rgba(255, 0, 255, 0.5));
         }
 
-        .stat-label {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
+        .pb-disc {
+            background: linear-gradient(90deg, var(--cyan), rgba(0, 255, 255, 0.5));
         }
 
-        .stat-value {
-            font-size: 2.2rem;
-            font-family: var(--font-mono);
-            font-weight: 700;
-            line-height: 1;
+        .pb-anal {
+            background: linear-gradient(90deg, var(--red), rgba(255, 0, 68, 0.5));
         }
 
-        .stat-sub {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        /* Progress Bar Animada */
-        .progress-container {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: var(--cyan-neon);
-            box-shadow: 0 0 10px var(--cyan-glow);
-            transition: width 0.3s ease;
-        }
-
-        .running .progress-bar {
-            background-image: linear-gradient(45deg,
-                    rgba(255, 255, 255, 0.15) 25%,
-                    transparent 25%,
-                    transparent 50%,
-                    rgba(255, 255, 255, 0.15) 50%,
-                    rgba(255, 255, 255, 0.15) 75%,
-                    transparent 75%,
-                    transparent);
-            background-size: 1rem 1rem;
-            animation: progress-stripes 1s linear infinite;
-        }
-
-        /* 
-          ==========================
-          TERMINAL (CONSOLE LOGS)
-          ==========================
-        */
-        .terminal-container {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .terminal-header {
-            padding: 1rem 1.5rem;
-            background: rgba(0, 0, 0, 0.4);
-            border-bottom: 1px solid var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .terminal-title {
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* Scrollable do Console */
-        .terminal-body {
-            background: #05050a;
+        /* === TERMINAL ========================================================== */
+        .terminal {
             flex: 1;
-            padding: 1.5rem;
-            overflow-y: auto;
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            line-height: 1.6;
-            scroll-behavior: smooth;
-        }
-
-        .log-line {
-            margin-bottom: 0.4rem;
-            word-break: break-all;
-            opacity: 0;
-            animation: slideIn 0.3s forwards;
             display: flex;
             flex-direction: column;
+            background: #030308;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
-        .timestamp {
-            color: #5c6370;
-            margin-right: 12px;
-            user-select: none;
-        }
-
-        /* Cores de Severidade / Findings */
-        .finding-box {
-            padding: 10px 14px;
-            margin: 6px 0 12px 0;
-            border-left: 3px solid transparent;
-            border-radius: 0 6px 6px 0;
-            display: inline-block;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.02);
-            font-family: var(--font-mono);
-        }
-
-        .finding-box.CRITICAL {
-            border-left-color: var(--sev-critical);
-            background: rgba(255, 42, 85, 0.08);
-        }
-
-        .finding-box.CRITICAL strong {
-            color: var(--sev-critical);
-            text-shadow: 0 0 8px var(--sev-critical);
-            animation: danger-pulse 1.5s infinite;
-        }
-
-        .finding-box.HIGH {
-            border-left-color: var(--sev-high);
-            background: rgba(255, 140, 0, 0.08);
-        }
-
-        .finding-box.HIGH strong {
-            color: var(--sev-high);
-        }
-
-        .finding-box.MEDIUM {
-            border-left-color: var(--sev-medium);
-            background: rgba(255, 204, 0, 0.05);
-        }
-
-        .finding-box.MEDIUM strong {
-            color: var(--sev-medium);
-        }
-
-        .finding-box.LOW {
-            border-left-color: var(--sev-low);
-        }
-
-        .finding-box.LOW strong {
-            color: var(--sev-low);
-        }
-
-        .finding-meta {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 4px;
+        .term-top {
             display: flex;
-            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
         }
 
-        /* Animações */
-        @keyframes blink {
-            to {
-                opacity: 0.3;
-            }
+        .term-top-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        @keyframes slideIn {
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-
-            from {
-                opacity: 0;
-                transform: translateX(-10px);
-            }
+        .term-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
         }
 
-        @keyframes progress-stripes {
-            from {
-                background-position: 1rem 0;
-            }
-
-            to {
-                background-position: 0 0;
-            }
+        .t1 {
+            background: #FF5F57;
         }
 
-        @keyframes danger-pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.7;
-            }
+        .t2 {
+            background: #FEBC2E;
         }
 
-        /* Media Queries - Responsividade */
-        @media (max-width: 900px) {
-            main {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                flex-direction: row;
-                flex-wrap: wrap;
-            }
-
-            .stat-card {
-                flex: 1;
-                min-width: 200px;
-            }
-
-            .terminal-container {
-                min-height: 500px;
-            }
-
-            header {
-                flex-direction: column;
-                gap: 1.5rem;
-                align-items: stretch;
-            }
-
-            .conn-controls {
-                flex-direction: column;
-            }
-
-            .conn-controls input,
-            .conn-controls button {
-                width: 100%;
-            }
-
-            #status-indicator {
-                justify-content: center;
-            }
+        .t3 {
+            background: #28C840;
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
+        .term-title-txt {
+            font-family: var(--font-code);
+            font-size: 0.7rem;
+            color: var(--dim);
+            margin-left: 8px;
         }
 
-        ::-webkit-scrollbar-track {
+        .autoscroll-toggle {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--dim);
+            cursor: pointer;
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: transparent;
+            transition: 0.3s;
+        }
+
+        .autoscroll-toggle.on {
+            color: var(--cyan);
+            border-color: rgba(0, 255, 255, 0.4);
+        }
+
+        #log-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px;
+            font-family: var(--font-code);
+            font-size: 0.78rem;
+            line-height: 1.7;
+        }
+
+        #log-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #log-body::-webkit-scrollbar-track {
             background: transparent;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: rgba(0, 245, 255, 0.2);
+        #log-body::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.15);
             border-radius: 4px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(0, 245, 255, 0.4);
+        .ll {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 3px;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .ts {
+            color: #2a2a40;
+            font-size: 0.72rem;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .log-i {
+            color: #555;
+        }
+
+        .log-s {
+            color: var(--green);
+        }
+
+        .log-w {
+            color: var(--yellow);
+        }
+
+        .log-e {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .log-c {
+            color: var(--cyan);
+        }
+
+        /* === FINDINGS TABLE ==================================================== */
+        .findings-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .findings-filter {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .filt-btn {
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--dim);
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+
+        .filt-btn.active {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            background: rgba(0, 255, 255, 0.08);
+        }
+
+        .tbl-wrap {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .tbl-wrap::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .tbl-wrap::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg3);
+            z-index: 10;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 0.74rem;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .sev-pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sev-CRITICAL {
+            background: rgba(255, 0, 68, 0.2);
+            color: var(--red);
+            border: 1px solid rgba(255, 0, 68, 0.4);
+            text-shadow: 0 0 8px var(--red);
+        }
+
+        .sev-HIGH {
+            background: rgba(255, 100, 0, 0.15);
+            color: #FF6400;
+            border: 1px solid rgba(255, 100, 0, 0.3);
+        }
+
+        .sev-MEDIUM {
+            background: rgba(245, 255, 0, 0.1);
+            color: var(--yellow);
+            border: 1px solid rgba(245, 255, 0, 0.3);
+        }
+
+        .sev-LOW {
+            background: rgba(0, 255, 255, 0.08);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .sev-INFO {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--dim);
+            border: 1px solid var(--border);
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--dim);
+            padding: 40px;
+            font-family: var(--font-code);
+            font-size: 0.75rem;
+        }
+
+        /* === RIGHT PANEL: SUMMARY ============================================== */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .big-stat {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 16px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .big-stat:hover {
+            border-color: rgba(0, 255, 255, 0.2);
+        }
+
+        .bs-val {
+            font-family: var(--font-code);
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .bs-lbl {
+            font-size: 0.6rem;
+            font-weight: 800;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .big-stat.critical-pulse {
+            animation: crit-pulse 2s infinite;
+        }
+
+        @keyframes crit-pulse {
+
+            0%,
+            100% {
+                border-color: rgba(255, 0, 68, 0.3);
+                box-shadow: 0 0 10px rgba(255, 0, 68, 0.1);
+            }
+
+            50% {
+                border-color: rgba(255, 0, 68, 0.6);
+                box-shadow: 0 0 25px rgba(255, 0, 68, 0.25);
+            }
+        }
+
+        .sys-info {
+            flex: 1;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            font-family: var(--font-code);
+            font-size: 0.65rem;
+            overflow: hidden;
+        }
+
+        .sys-info p {
+            color: var(--dim);
+            padding: 3px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sys-info p span {
+            color: var(--cyan);
+        }
+
+        .sys-info p span.ok {
+            color: var(--green);
+        }
+
+        .sys-info p span.warn {
+            color: var(--yellow);
+        }
+
+        .sys-info p span.err {
+            color: var(--red);
         }
     </style>
 </head>
 
 <body>
+    <div class="app">
 
-    <header>
-        <div class="brand">
-            <span class="title">SaaS Scanner <span class="title-accent">PRO</span></span>
-        </div>
-
-        <div class="conn-controls">
-            <input type="text" id="ws_url" placeholder="ws://localhost:8765" spellcheck="false">
-            <input type="password" id="jwt_token" placeholder="Authorization (JWT)...">
-            <button id="btn_connect" onclick="wsManager.toggleConnection()">Conectar</button>
-            <div id="status-indicator" class="state-disconnected">
-                <div class="led"></div>
-                <span id="txt-status">Desconectado</span>
+        <!-- HEADER -->
+        <header>
+            <div class="brand">
+                <div class="brand-icon">🛡️</div>
+                <div>
+                    <div class="brand-name">SAAS SCANNER <em>PRO</em></div>
+                    <div class="brand-sub">SOC CYBER EDITION // v3.0</div>
+                </div>
             </div>
-        </div>
-    </header>
+            <div class="header-right">
+                <div class="time-display" id="clock">--:--:--</div>
+                <div class="ws-badge disconnected" id="ws-badge">
+                    <div class="led"></div>
+                    <span id="ws-text">DISCONNECTED</span>
+                </div>
+            </div>
+        </header>
 
-    <main>
-        <aside class="stats-grid">
-            <div class="stat-card glass-panel neon-cyan">
-                <span class="stat-label">Total Findings</span>
-                <span class="stat-value" id="val_findings" style="color: var(--cyan-neon)">0</span>
-                <div class="progress-container running">
-                    <div class="progress-bar" id="progress_bar"></div>
+        <!-- BODY -->
+        <div class="body">
+
+            <!-- LEFT SIDEBAR: CONTROLS -->
+            <aside class="sidebar">
+                <!-- Scan Controls -->
+                <div class="card">
+                    <div class="card-hdr"><span>🚀</span> Execute Scan</div>
+                    <div class="field">
+                        <label>Target URL</label>
+                        <input type="text" id="target-input" placeholder="https://api.target.com">
+                    </div>
+                    <div class="field">
+                        <label>Scan Profile</label>
+                        <select id="scan-type">
+                            <option value="full">Full Deep Scan</option>
+                            <option value="fast">Fast Recon</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="btn-scan" onclick="App.startScan()">
+                        <div class="spinner" id="scan-spinner"></div>
+                        <span id="btn-scan-txt">🚀 EXECUTE SCAN</span>
+                    </button>
+                </div>
+
+                <!-- Monitor Job -->
+                <div class="card">
+                    <div class="card-hdr"><span>⚡</span> Attach Monitor</div>
+                    <div class="field">
+                        <label>API Key / JWT</label>
+                        <input type="password" id="token-input" placeholder="Bearer token..." value="Gustavo222@2">
+                    </div>
+                    <div class="field">
+                        <label>Job Instance ID</label>
+                        <input type="text" id="job-id-input" placeholder="UUID do job">
+                    </div>
+                    <button class="btn btn-primary" onclick="WS.connect()">⚡ ATTACH CHANNEL</button>
+                    <button class="btn btn-ghost" id="btn-disc" style="display:none" onclick="WS.disconnect()">☠
+                        DISCONNECT</button>
+                </div>
+
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat cyan">
+                        <div class="stat-info">
+                            <span class="stat-label">Total Findings</span>
+                            <span class="stat-val cyan" id="s-total">0</span>
+                        </div>
+                        <svg width="20" height="20" fill="none" stroke="var(--cyan)" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                    </div>
+                    <div class="stat red">
+                        <div class="stat-info">
+                            <span class="stat-label">Critical / High</span>
+                            <span class="stat-val red" id="s-crit">0</span>
+                        </div>
+                        <svg width="20" height="20" fill="none" stroke="var(--red)" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                    </div>
+                    <div class="stat green">
+                        <div class="stat-info">
+                            <span class="stat-label">Req Count</span>
+                            <span class="stat-val green" id="s-reqs">0</span>
+                        </div>
+                        <svg width="20" height="20" fill="none" stroke="var(--green)" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                    </div>
+                    <div class="stat mag">
+                        <div class="stat-info">
+                            <span class="stat-label">Live Events</span>
+                            <span class="stat-val mag" id="s-live">0</span>
+                        </div>
+                        <svg width="20" height="20" fill="none" stroke="var(--magenta)" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="2" />
+                            <path
+                                d="M16.24 7.76a6 6 0 010 8.49m-8.49-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
+                        </svg>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MAIN PANEL -->
+            <div class="main-panel">
+                <!-- TABS -->
+                <div class="tabs">
+                    <button class="tab active" data-tab="live" onclick="App.switchTab('live')">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"
+                            viewBox="0 0 24 24">
+                            <polyline points="4 17 10 11 4 5" />
+                            <line x1="12" y1="19" x2="20" y2="19" />
+                        </svg>
+                        Live Monitoring
+                    </button>
+                    <button class="tab" data-tab="findings" onclick="App.switchTab('findings')">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"
+                            viewBox="0 0 24 24">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        Findings
+                    </button>
+                </div>
+
+                <!-- PANE: LIVE MONITORING -->
+                <div class="pane active" id="pane-live">
+                    <!-- Phase Progress Bar -->
+                    <div class="phase-bar">
+                        <div class="phase-labels">
+                            <span class="phase-lbl" id="pl-recon">01 // RECONNAISSANCE</span>
+                            <span class="phase-lbl" id="pl-disc">02 // DISCOVERY</span>
+                            <span class="phase-lbl" id="pl-anal">03 // SECURITY ANALYSIS</span>
+                        </div>
+                        <div class="pb-track">
+                            <div class="pb-seg pb-recon" id="pb-recon"></div>
+                            <div class="pb-seg pb-disc" id="pb-disc"></div>
+                            <div class="pb-seg pb-anal" id="pb-anal"></div>
+                        </div>
+                    </div>
+
+                    <!-- Terminal -->
+                    <div class="terminal">
+                        <div class="term-top">
+                            <div class="term-top-left">
+                                <div class="term-dot t1"></div>
+                                <div class="term-dot t2"></div>
+                                <div class="term-dot t3"></div>
+                                <span class="term-title-txt">▷ LIVE EVENT STREAM // READ-ONLY</span>
+                            </div>
+                            <button class="autoscroll-toggle on" id="ascroll-btn"
+                                onclick="App.toggleAutoScroll()">AUTO-SCROLL ON</button>
+                        </div>
+                        <div id="log-body">
+                            <div class="ll"><span class="ts">00:00:00</span><span class="log-c">SYSTEM ONLINE //
+                                    Awaiting scan authorization...</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANE: FINDINGS -->
+                <div class="pane" id="pane-findings">
+                    <div class="findings-pane">
+                        <div class="findings-filter">
+                            <button class="filt-btn active" onclick="App.filterTable('ALL')">ALL</button>
+                            <button class="filt-btn" onclick="App.filterTable('CRITICAL')"
+                                style="color:var(--red)">CRITICAL</button>
+                            <button class="filt-btn" onclick="App.filterTable('HIGH')">HIGH</button>
+                            <button class="filt-btn" onclick="App.filterTable('MEDIUM')">MEDIUM</button>
+                            <button class="filt-btn" onclick="App.filterTable('LOW')">LOW</button>
+                        </div>
+                        <div class="tbl-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Severity</th>
+                                        <th>Type / Title</th>
+                                        <th>Endpoint</th>
+                                        <th>Payload</th>
+                                        <th>Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="findings-body">
+                                    <tr>
+                                        <td colspan="5" class="no-data">// NO FINDINGS YET // Run a scan to populate
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="stat-card glass-panel neon-red">
-                <span class="stat-label">Critical / High Alerts</span>
-                <span class="stat-value" id="val_criticals" style="color: var(--sev-critical)">0</span>
-                <span class="stat-sub">Requerem Atenção Imediata</span>
+            <!-- RIGHT PANEL: SUMMARY -->
+            <div class="right-panel">
+                <div class="big-stat">
+                    <div class="bs-val" id="bs-total" style="color:var(--cyan);text-shadow:var(--gcyan)">0</div>
+                    <div class="bs-lbl">Total Findings</div>
+                </div>
+                <div class="big-stat critical-pulse">
+                    <div class="bs-val" id="bs-crit" style="color:var(--red)">0</div>
+                    <div class="bs-lbl">Critical / High</div>
+                </div>
+                <div class="big-stat">
+                    <div class="bs-val" id="bs-reqs" style="color:var(--dim)">0</div>
+                    <div class="bs-lbl">HTTP Requests</div>
+                </div>
+                <div class="sys-info">
+                    <p>> STATUS: <span class="ok" id="sys-status">STANDBY</span></p>
+                    <p>> RATE_LIMIT: <span class="ok">ACTIVE (30 RPM)</span></p>
+                    <p>> WAF_EVASION: <span class="ok">ENABLED</span></p>
+                    <p>> JWT_AUTH: <span class="ok">OK</span></p>
+                    <p>> REPORTS: <span class="ok">PDF+HTML</span></p>
+                    <p>> WS_HEARTBEAT: <span class="ok">20s</span></p>
+                    <p>> OAST: <span id="sys-oast">interact.sh</span></p>
+                    <p>> TARGET: <span id="sys-target" class="warn">--</span></p>
+                </div>
             </div>
 
-            <div class="stat-card glass-panel">
-                <span class="stat-label">Active Host</span>
-                <span class="stat-value" id="val_host"
-                    style="font-size: 1.2rem; word-break: break-all;">Aguardando...</span>
-                <span class="stat-sub" id="val_port">Porta: --</span>
-            </div>
-
-            <div class="stat-card glass-panel">
-                <span class="stat-label">Heartbeat Pulse (Uptime)</span>
-                <span class="stat-value" id="val_last_ping" style="font-size: 1.5rem;">N/D</span>
-                <span class="stat-sub" id="val_uptime_since">Tempo real</span>
-            </div>
-        </aside>
-
-        <div class="terminal-container glass-panel">
-            <div class="terminal-header">
-                <span class="terminal-title">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-neon)"
-                        stroke-width="2" style="margin-right:8px;">
-                        <polyline points="4 17 10 11 4 5"></polyline>
-                        <line x1="12" y1="19" x2="20" y2="19"></line>
-                    </svg>
-                    CONSOLE // LIVE EVENT STREAM
-                </span>
-                <span style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">[READ
-                    ONLY]</span>
-            </div>
-            <div class="terminal-body" id="term_body">
-                <!-- Logs aparecerão aqui via JS -->
-            </div>
-        </div>
-    </main>
+        </div><!-- .body -->
+    </div><!-- .app -->
 
     <script>
-        /**
-         * ENGINE DO TERMINAL DOM
-         */
-        const Terminal = {
-            el: document.getElementById('term_body'),
-            formatTimestamp: () => {
-                const d = new Date();
-                return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}.${d.getMilliseconds().toString().padStart(3, '0')}`;
-            },
+        /* ========================================================
+           APP STATE
+        ======================================================== */
+        const state = {
+            total: 0, crit: 0, reqs: 0, live: 0, autoScroll: true,
+            findings: [],
+            currentFilter: 'ALL'
+        };
 
-            appendStr: (htmlString) => {
+        /* ========================================================
+           CLOCK
+        ======================================================== */
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
+        }, 1000);
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
+
+        /* ========================================================
+           TERMINAL LOGGER
+        ======================================================== */
+        const Log = {
+            el: document.getElementById('log-body'),
+            add(msg, type = 'i') {
                 const div = document.createElement('div');
-                div.className = 'log-line';
-                div.innerHTML = `<span class="timestamp">[${Terminal.formatTimestamp()}]</span> <span>${htmlString}</span>`;
-                Terminal.el.appendChild(div);
-                Terminal.scrollToBottom();
-            },
-
-            appendFinding: (msg) => {
-                const severity = (msg.severity || 'LOW').toUpperCase();
-                const div = document.createElement('div');
-                div.className = `log-line`;
-
-                div.innerHTML = `
-                    <div><span class="timestamp">[${Terminal.formatTimestamp()}]</span> <span style="color: var(--text-muted);">Nova vulnerabilidade descoberta:</span></div>
-                    <div class="finding-box ${severity}">
-                        <strong>[${severity}] ${msg.title || 'Vulnerabilidade Genérica Reportada'}</strong><br>
-                        <div class="finding-meta">
-                            <span>Target: ${msg.host || 'unknown'}</span>
-                            <span>Endpoint: ${msg.endpoint || '/'}</span>
-                        </div>
-                    </div>
-                `;
-                Terminal.el.appendChild(div);
-                Terminal.scrollToBottom();
-            },
-
-            scrollToBottom: () => {
-                // Autoscroll suave: só desce se já estivesse perdo do final,
-                // prevenindo incomodar do usuário caso ele tenha rolado pra cima.
-                if (Terminal.el.scrollHeight - Terminal.el.scrollTop < Terminal.el.clientHeight + 150) {
-                    Terminal.el.scrollTop = Terminal.el.scrollHeight;
-                }
+                div.className = 'll';
+                const ts = new Date().toLocaleTimeString('en-GB');
+                div.innerHTML = `<span class="ts">${ts}</span><span class="log-${type}">${msg}</span>`;
+                this.el.appendChild(div);
+                if (state.autoScroll) this.el.scrollTop = this.el.scrollHeight;
+                state.live++;
+                animateCount('s-live', state.live);
             }
         };
 
-        /**
-         * CONTROLADOR DA UI
-         */
-        const DashboardUI = {
-            findingsTotal: 0,
-            criticalHighTotal: 0,
+        /* ========================================================
+           ANIMATED COUNTER
+        ======================================================== */
+        function animateCount(id, target) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            let current = parseInt(el.innerText) || 0;
+            if (current === target) return;
+            const step = target > current ? 1 : -1;
+            const timer = setInterval(() => {
+                current += step;
+                el.innerText = current;
+                if (current === target) clearInterval(timer);
+            }, 30);
+        }
+        function updateStats() {
+            animateCount('s-total', state.total);
+            animateCount('s-crit', state.crit);
+            animateCount('s-reqs', state.reqs);
+            animateCount('bs-total', state.total);
+            animateCount('bs-crit', state.crit);
+            animateCount('bs-reqs', state.reqs);
+        }
 
-            initInputs: () => {
-                const ws_url = localStorage.getItem('ws_url_pro') || 'ws://localhost:8765';
-                const token = localStorage.getItem('jwt_token_pro') || '';
-                document.getElementById('ws_url').value = ws_url;
-                document.getElementById('jwt_token').value = token;
-            },
-
-            saveInputs: () => {
-                localStorage.setItem('ws_url_pro', document.getElementById('ws_url').value.trim());
-                localStorage.setItem('jwt_token_pro', document.getElementById('jwt_token').value.trim());
-            },
-
-            setState: (stateName) => {
-                const indicator = document.getElementById('status-indicator');
-                const btn = document.getElementById('btn_connect');
-                const txt = document.getElementById('txt-status');
-                const pBar = document.getElementById('progress_bar');
-
-                indicator.className = `state-${stateName}`;
-
-                if (stateName === 'connected') {
-                    txt.innerText = 'CONECTADO';
-                    btn.innerText = 'Desconectar';
-                    btn.style.color = 'var(--status-disconnected)';
-                    btn.style.borderColor = 'var(--status-disconnected)';
-                    pBar.style.width = "100%";
-                } else if (stateName === 'connecting') {
-                    txt.innerText = 'RECONECTANDO...';
-                    btn.innerText = 'Abortar';
-                    btn.style.color = 'var(--status-connecting)';
-                    btn.style.borderColor = 'var(--status-connecting)';
-                    pBar.style.width = "50%";
-                } else {
-                    txt.innerText = 'DESCONECTADO';
-                    btn.innerText = 'Conectar';
-                    btn.style.color = 'var(--cyan-neon)';
-                    btn.style.borderColor = 'var(--cyan-neon)';
-                    pBar.style.width = "0%";
+        /* ========================================================
+           PHASE PROGRESS
+        ======================================================== */
+        const Phase = {
+            set(phase, pct) {
+                // phase: 'recon' | 'disc' | 'anal'
+                const pb = document.getElementById(`pb-${phase}`);
+                const lbl = {
+                    recon: document.getElementById('pl-recon'),
+                    disc: document.getElementById('pl-disc'),
+                    anal: document.getElementById('pl-anal'),
+                };
+                if (pb) pb.style.width = pct + '%';
+                if (lbl[phase]) {
+                    lbl[phase].classList.remove('active-phase');
+                    if (pct >= 100) lbl[phase].classList.add('done');
+                    else if (pct > 0) lbl[phase].classList.add('active-phase');
                 }
             },
-
-            updateHostProgress: (host, port, statusStr) => {
-                document.getElementById('val_host').innerText = host || 'Aguardando...';
-                document.getElementById('val_port').innerText = `Porta: ${port || '--'}`;
-                // Poderíamos usar o `statusStr` se fôssemos refletir "idle", "scanning", etc.
-            },
-
-            updateHeartbeat: (isoString) => {
-                try {
-                    const d = new Date(isoString);
-                    document.getElementById('val_last_ping').innerText = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
-                } catch (e) { }
-            },
-
-            incrementFinding: (severity) => {
-                DashboardUI.findingsTotal++;
-                document.getElementById('val_findings').innerText = DashboardUI.findingsTotal;
-
-                if (severity === 'CRITICAL' || severity === 'HIGH') {
-                    DashboardUI.criticalHighTotal++;
-                    document.getElementById('val_criticals').innerText = DashboardUI.criticalHighTotal;
-                }
+            reset() {
+                ['recon', 'disc', 'anal'].forEach(p => {
+                    this.set(p, 0);
+                    const lbl = document.getElementById(`pl-${p}`);
+                    if (lbl) { lbl.classList.remove('done', 'active-phase'); }
+                });
             }
         };
 
-        /**
-         * WEBSOCKET MANAGER (Puro JS, Zero Dependencies)
-         * - Envia First Message {"token": JWT} pois o navegador (browser native WebSocket) não permite custom Headers Authorization.
-         * - Se user passou `jwt_token`, o backend Python (AuthMessage Pydantic) irá extrair o JWT e autenticar.
-         */
-        const wsManager = {
-            socket: null,
-            isConnected: false,
-            forcedDisconnect: false,
-            reconnectAttempts: 0,
+        /* ========================================================
+           FINDINGS TABLE
+        ======================================================== */
+        const Table = {
+            add(f) {
+                state.findings.unshift(f);
+                state.total++;
+                if (['CRITICAL', 'HIGH'].includes(f.severity)) state.crit++;
+                updateStats();
+                this.render();
+            },
+            render() {
+                const body = document.getElementById('findings-body');
+                const filter = state.currentFilter;
+                const data = filter === 'ALL' ? state.findings : state.findings.filter(f => f.severity === filter);
+                if (!data.length) {
+                    body.innerHTML = '<tr><td colspan="5" class="no-data">// NO FINDINGS MATCHING FILTER</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.map(f => `
+      <tr>
+        <td><span class="sev-pill sev-${f.severity}">${f.severity}</span></td>
+        <td style="color:var(--text);font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.title}</td>
+        <td style="color:var(--dim);font-family:var(--font-code);font-size:0.65rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.endpoint || '—'}</td>
+        <td style="color:var(--dim);font-family:var(--font-code);font-size:0.65rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.payload || '—'}</td>
+        <td style="color:var(--green)">${f.confidence_score ? (f.confidence_score * 100).toFixed(0) + '%' : '—'}</td>
+      </tr>`).join('');
+            }
+        };
 
-            toggleConnection: () => {
-                if (wsManager.isConnected || wsManager.socket != null) {
-                    // Usuário clicou em Desconectar/Abortar Manual
-                    wsManager.forcedDisconnect = true;
-                    if (wsManager.socket) {
-                        wsManager.socket.close(1000, "User manual disconnect");
+        /* ========================================================
+           WS BADGE
+        ======================================================== */
+        function setBadge(status, txt) {
+            const b = document.getElementById('ws-badge');
+            const t = document.getElementById('ws-text');
+            b.className = `ws-badge ${status}`;
+            t.innerText = txt;
+        }
+
+        /* ========================================================
+           WEBSOCKET MANAGER
+        ======================================================== */
+        const WS = {
+            socket: null, attempts: 0, maxAttempts: 5,
+            _timer: null,
+
+            connect() {
+                if (this.socket && this.socket.readyState < 2) this.socket.close();
+                clearTimeout(this._timer);
+                const jobId = document.getElementById('job-id-input').value.trim();
+                const token = document.getElementById('token-input').value.trim() || 'Gustavo222@2';
+                if (!jobId) { Log.add('ERROR: Provide a Job ID to attach channel', 'e'); return; }
+
+                setBadge('connecting', 'CONNECTING...');
+                const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+                const url = `${proto}://${location.host}/ws/logs/${jobId}?token=${token}`;
+                Log.add(`WS ▷ Establishing channel to ${location.host}...`, 'c');
+                this.socket = new WebSocket(url);
+
+                this.socket.onopen = () => {
+                    this.attempts = 0;
+                    setBadge('connected', 'CONNECTED');
+                    Log.add('SYSTEM_ONLINE ▷ Stream channel established ✓', 's');
+                    document.getElementById('btn-disc').style.display = '';
+                    document.getElementById('sys-status').innerText = 'SCANNING';
+                    document.getElementById('sys-status').className = 'warn';
+                };
+
+                this.socket.onmessage = (e) => {
+                    let data;
+                    try { data = JSON.parse(e.data); } catch { return; }
+                    if (!data) return;
+                    // Silence heartbeats
+                    if (data.type === 'ping' || data.type === 'pong') return;
+                    this._route(data);
+                };
+
+                this.socket.onclose = (ev) => {
+                    setBadge('disconnected', 'DISCONNECTED');
+                    Log.add(`WS CLOSED ▷ code=${ev.code} reason=${ev.reason || '—'}`, 'w');
+                    if (this.attempts < this.maxAttempts) {
+                        this.attempts++;
+                        const delay = 2000 * Math.pow(2, this.attempts - 1);
+                        setBadge('connecting', `RECONNECT #${this.attempts}`);
+                        Log.add(`WS ▷ Backoff reconnect #${this.attempts} in ${delay / 1000}s...`, 'w');
+                        this._timer = setTimeout(() => this.connect(), delay);
+                    } else {
+                        Log.add('WS ▷ Max reconnect attempts reached. Manual action required.', 'e');
                     }
-                    DashboardUI.setState('disconnected');
-                    Terminal.appendStr(`<span style="color: var(--text-muted)">Conexão encerrada pelo usuário.</span>`);
-                } else {
-                    wsManager.forcedDisconnect = false;
-                    wsManager.reconnectAttempts = 0;
-                    DashboardUI.saveInputs();
-                    wsManager.connect();
-                }
+                };
+
+                this.socket.onerror = () => {
+                    Log.add('WS ▷ Connection error — check backend', 'e');
+                };
             },
 
-            connect: () => {
-                if (wsManager.socket && wsManager.socket.readyState !== WebSocket.CLOSED) return;
+            disconnect() {
+                clearTimeout(this._timer);
+                this.attempts = this.maxAttempts; // prevent auto-reconnect
+                if (this.socket) this.socket.close(1000, 'User disconnected');
+                setBadge('disconnected', 'DISCONNECTED');
+                document.getElementById('btn-disc').style.display = 'none';
+                document.getElementById('sys-status').innerText = 'STANDBY';
+                document.getElementById('sys-status').className = 'ok';
+            },
 
-                const url = document.getElementById('ws_url').value.trim();
-                const jwt = document.getElementById('jwt_token').value.trim();
-
-                if (!url) {
-                    Terminal.appendStr(`<span style="color: var(--sev-critical)">Erro: URL do WebSocket exigida.</span>`);
+            _route(data) {
+                // Status updates
+                if (data.status === 'running') {
+                    Log.add('▷ Scan is running...', 'i');
+                    if (data.target) {
+                        document.getElementById('sys-target').innerText = data.target;
+                        document.getElementById('sys-target').className = 'warn';
+                    }
+                    return;
+                }
+                if (data.status === 'completed') {
+                    Phase.set('recon', 100);
+                    Phase.set('disc', 100);
+                    Phase.set('anal', 100);
+                    Log.add('SCAN_COMPLETE ▷ All phases done. Report exported ✓', 's');
+                    document.getElementById('sys-status').innerText = 'COMPLETE';
+                    document.getElementById('sys-status').className = 'ok';
+                    return;
+                }
+                if (data.status === 'failed') {
+                    Log.add(`SCAN_FAILED ▷ ${data.error || 'Unknown error'}`, 'e');
                     return;
                 }
 
-                DashboardUI.setState('connecting');
-                Terminal.appendStr(`<span style="color: var(--status-connecting)">Engatando handshake com ${url}...</span>`);
-
-                try {
-                    // Native HTML5 WebSocket Instance
-                    wsManager.socket = new WebSocket(url);
-                } catch (e) {
-                    Terminal.appendStr(`<span style="color: var(--sev-critical)">Falha na construção WS: ${e.message}</span>`);
-                    DashboardUI.setState('disconnected');
-                    wsManager.executeBackoff();
+                // Log messages
+                if (data.type === 'log') {
+                    const msg = data.message || '';
+                    const t = msg.toLowerCase().includes('error') ? 'e'
+                        : msg.toLowerCase().includes('warn') || msg.toLowerCase().includes('rate') ? 'w'
+                            : msg.toLowerCase().includes('✅') || msg.toLowerCase().includes('found') ? 's'
+                                : 'i';
+                    Log.add(msg, t);
+                    // Auto phase detection
+                    if (/reconnaissance/i.test(msg)) Phase.set('recon', 100);
+                    if (/discovery/i.test(msg)) Phase.set('disc', 100);
+                    if (/security analysis/i.test(msg)) Phase.set('anal', 80);
+                    // Update req count
+                    const m = msg.match(/(\d+)\s*req/i);
+                    if (m) { state.reqs = parseInt(m[1]); updateStats(); }
                     return;
                 }
 
-                // Callbacks Nativos
-                wsManager.socket.onopen = (e) => {
-                    Terminal.appendStr(`<span style="color: var(--status-connected)">Socket TCP/TLS Aberto. Enviando Autenticação (JWT)...</span>`);
+                // Security events
+                if (data.type === 'security_event') {
+                    Log.add(`🛡️ <span style="color:var(--magenta)">${data.title}</span> — ${data.message}`, 'w');
+                    return;
+                }
 
-                    // Nota arquitetural: Enviamos o token como JSON na primeira mensagem pois o navegador n permite injetar Headers.
-                    if (jwt) {
-                        wsManager.socket.send(JSON.stringify({ "token": jwt }));
-                    } else {
-                        Terminal.appendStr(`<span style="color: var(--sev-high)">Aviso: Nenhum JWT providenciado (Tentar anônimo).</span>`);
-                    }
+                // Findings
+                if (data.type === 'finding') {
+                    const f = data.data || data;
+                    Log.add(`🔴 <span style="color:var(--red)">VULN DETECTED</span> ▷ ${(f.severity || '').toUpperCase()} — ${f.title}`, 'e');
+                    Table.add(f);
+                    return;
+                }
 
-                    wsManager.isConnected = true;
-                    wsManager.reconnectAttempts = 0; // Reset Backoff success
-                    DashboardUI.setState('connected');
-                };
-
-                wsManager.socket.onmessage = (e) => {
-                    try {
-                        const payload = JSON.parse(e.data);
-
-                        if (payload.type === 'heartbeat') {
-                            DashboardUI.updateHeartbeat(payload.ts || payload.timestamp);
-                        }
-                        else if (payload.type === 'progress') {
-                            DashboardUI.updateHostProgress(payload.host, payload.port, payload.status);
-                        }
-                        else if (payload.type === 'finding') {
-                            DashboardUI.incrementFinding(payload.severity);
-                            Terminal.appendFinding(payload);
-                            DashboardUI.updateHostProgress(payload.host, payload.port, payload.status);
-                        }
-                        else {
-                            // Loga objetos genéricos se houver
-                            Terminal.appendStr(`Payload: <span style="color:var(--text-muted)">${JSON.stringify(payload)}</span>`);
-                        }
-                    } catch (err) {
-                        Terminal.appendStr(`Raw Text: ${e.data}`);
-                    }
-                };
-
-                wsManager.socket.onclose = (e) => {
-                    wsManager.socket = null;
-                    wsManager.isConnected = false;
-
-                    DashboardUI.setState('disconnected');
-
-                    // 1008 = Policy Violation (O PyJWT do Backend ejetou o cliente por Token Iválido/Expirado)
-                    if (e.code === 1008) {
-                        Terminal.appendStr(`<strong style="color: var(--sev-critical)">ACESSO NEGADO (Código 1008)</strong>: O servidor rejeitou o JWT fornecido.`);
-                        wsManager.forcedDisconnect = true; // Para de tentar logar num token que quebrou
-                    }
-                    else if (e.code === 1000) {
-                        Terminal.appendStr(`<span style="color: var(--text-muted)">Sessão encerrada limpa pelo Servidor (Timeout / Fim de Scan).</span>`);
-                        // Desativar auto-reconnect se foi uma saída pacífica
-                        wsManager.forcedDisconnect = true;
-                    } else {
-                        Terminal.appendStr(`<strong style="color: var(--sev-high)">Conexão perdida (Socket Code ${e.code}).</strong>`);
-                    }
-
-                    if (!wsManager.forcedDisconnect) {
-                        wsManager.executeBackoff();
-                    }
-                };
-
-                wsManager.socket.onerror = (e) => {
-                    Terminal.appendStr(`<strong style="color: var(--sev-critical)">Erro crasso de Redes. Verifique o Gateway/SSL.</strong>`);
-                };
-            },
-
-            executeBackoff: () => {
-                // Matemática do Backoff Exponencial (2s, 4s, 8s, 16s, max 30s)
-                const delay = Math.min(30000, 2000 * Math.pow(2, wsManager.reconnectAttempts));
-                wsManager.reconnectAttempts++;
-
-                Terminal.appendStr(`<span style="color: var(--status-connecting)">Backoff Engine ativado. Retentando em ${delay / 1000}s... (Tentativa ${wsManager.reconnectAttempts})</span>`);
-                DashboardUI.setState('connecting');
-
-                setTimeout(() => {
-                    if (!wsManager.forcedDisconnect && !wsManager.isConnected) {
-                        wsManager.connect();
-                    }
-                }, delay);
+                // Fallback
+                Log.add(JSON.stringify(data), 'i');
             }
         };
 
-        // Bootstrap App
-        document.addEventListener('DOMContentLoaded', () => {
-            DashboardUI.initInputs();
-            Terminal.appendStr('Inicializando Módulo Gráfico de Lógica Ciber-Segura...');
-            Terminal.appendStr('Status LocalStorage: <span style="color: var(--cyan-neon)">OK! Informações restauradas.</span>');
-            Terminal.appendStr('Aguardando Input de Conexão...');
-        });
+        /* ========================================================
+           APP CONTROLLER
+        ======================================================== */
+        const App = {
+            async startScan() {
+                const target = document.getElementById('target-input').value.trim();
+                if (!target) { Log.add('ERROR ▷ Target URL required', 'e'); return; }
+                const token = document.getElementById('token-input').value.trim() || 'Gustavo222@2';
+                const type = document.getElementById('scan-type').value;
+
+                // Loading state
+                document.getElementById('scan-spinner').style.display = 'block';
+                document.getElementById('btn-scan-txt').innerText = 'INJECTING...';
+                document.getElementById('btn-scan').disabled = true;
+
+                Phase.reset();
+                document.getElementById('sys-target').innerText = target;
+                Log.add(`SCAN_INIT ▷ Target: <span style="color:var(--cyan)">${target}</span>`, 'c');
+
+                try {
+                    const res = await fetch('/api/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ target, scan_type: type })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || 'Scan failed');
+
+                    document.getElementById('job-id-input').value = data.job_id;
+                    Log.add(`JOB_AUTHORIZED ▷ ID: <span style="color:var(--green)">${data.job_id}</span>`, 's');
+                    WS.connect();
+                } catch (ex) {
+                    Log.add(`SCAN_ERROR ▷ ${ex.message}`, 'e');
+                } finally {
+                    document.getElementById('scan-spinner').style.display = 'none';
+                    document.getElementById('btn-scan-txt').innerText = '🚀 EXECUTE SCAN';
+                    document.getElementById('btn-scan').disabled = false;
+                }
+            },
+
+            switchTab(name) {
+                document.querySelectorAll('.tab').forEach(t => {
+                    t.classList.toggle('active', t.dataset.tab === name);
+                });
+                document.querySelectorAll('.pane').forEach(p => {
+                    p.classList.toggle('active', p.id === `pane-${name}`);
+                });
+            },
+
+            toggleAutoScroll() {
+                state.autoScroll = !state.autoScroll;
+                const btn = document.getElementById('ascroll-btn');
+                btn.innerText = state.autoScroll ? 'AUTO-SCROLL ON' : 'AUTO-SCROLL OFF';
+                btn.classList.toggle('on', state.autoScroll);
+            },
+
+            filterTable(sev) {
+                state.currentFilter = sev;
+                document.querySelectorAll('.filt-btn').forEach(b => {
+                    b.classList.toggle('active', b.innerText === sev);
+                });
+                Table.render();
+            }
+        };
     </script>
 </body>
 

@@ -149,6 +149,33 @@ async def check_custom_vuln(scanner_context):
 
 ---
 
+## 📊 Load Testing (Performance & Scalability)
+
+The SaaS Scanner Pro includes a comprehensive load testing suite powered by **Locust** to validate performance under real-world conditions.
+
+### User Personas
+* **NormalUser (80%):** Light scans (1-3 ports), frequent status checks.
+* **PowerUser (15%):** Heavy scans (10-20 ports), result polling, JWT auth.
+* **AdminUser (5%):** Bulk job listing, exports, and Job cleanup.
+
+### Performance Benchmarks
+* **Target p95 Latency:** < 500ms (Status) / < 2000ms (Scan creation).
+* **Target Error Rate:** < 1% at 50 concurrent users.
+
+### Quick Start
+1. **Install requirements:** `pip install locust fakeredis python-jose`
+2. **Setup environment:** `cp .env.locust.example .env.locust`
+3. **Run Smoke Test (Local):**
+```bash
+locust -f locustfile.py --headless -u 5 -r 1 -t 1m --host http://localhost:8000
+```
+4. **Run with Interactive UI:**
+```bash
+locust -f locustfile.py --host http://localhost:8000
+```
+
+---
+
 ## 📄 License
 
 Este software foi desenhado para propósitos educacionais e testes de segurança em ambientes **autorizados**.

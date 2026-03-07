@@ -1,0 +1,77 @@
+name: Load Testing
+
+on:
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *' # Roda toda noite às 2h
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.7.0
+        with:
+          redis-version: 7
+          
+      - name: Start App (Background)
+        run: |
+          python app.py &
+          sleep 5
+        env:
+          API_KEY_SECRET: "test-auth-key"
+          REDIS_HOST: "localhost"
+          ENV: "development"
+          
+      - name: Run Locust Smoke Test
+        run: |
+          mkdir -p results
+          locust -f locustfile.py --headless -u 5 -r 1 -t 1m --host http://localhost:8000 --html=results/smoke-report.html --csv=results/smoke --exit-code-on-error 1
+        env:
+          API_KEY_SECRET: "test-auth-key"
+          
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: locust-smoke-report
+          path: results/
+
+  load-test-nightly:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.7.0
+      - name: Start App (Background)
+        run: |
+          python app.py &
+          sleep 10
+      - name: Run Full Load Test
+        run: |
+          mkdir -p results
+          locust -f locustfile.py --headless -u 50 -r 5 -t 10m --host http://localhost:8000 --html=results/load-report.html --csv=results/load
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-load-report
+          path: results/
