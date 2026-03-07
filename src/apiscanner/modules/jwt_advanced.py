@@ -44,11 +44,52 @@ class JWTAdvancedPlugin(BasePlugin):
         f_kid = await self.test_kid_injection(target, token)
         if f_kid: findings.append(f_kid)
 
+        f_weak = await self.test_weak_secrets(target, token)
+        if f_weak: findings.append(f_weak)
+
         for f in findings:
             self.add(f)
             result.add_finding(f)
 
         return findings
+
+    def _base64_url_encode(self, data: bytes) -> str:
+        return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+    async def test_weak_secrets(self, target: str, token: str) -> Optional[Finding]:
+        """Tries to forge tokens with common HS256 secrets."""
+        header, payload, sig = self._decode_jwt(token)
+        if header.get("alg") != "HS256": return None
+
+        common_secrets = ["secret", "password", "123456", "admin", "test", "jwt_secret", "development", "staging", "production", "app_secret", "jwt-secret", "supersecret", "secretkey"]
+        
+        # Test 1: Forging a small change in payload using our candidate secrets
+        # If any of our forged tokens are accepted (200 OK), we found the secret.
+        test_payload = payload.copy()
+        test_payload["admin"] = True
+        
+        h_b64 = self._base64_url_encode(json.dumps(header).encode())
+        p_b64 = self._base64_url_encode(json.dumps(test_payload).encode())
+        signing_input = f"{h_b64}.{p_b64}".encode()
+
+        for s in common_secrets:
+            try:
+                new_sig = hmac.new(s.encode(), signing_input, hashlib.sha256).digest()
+                s_b64 = self._base64_url_encode(new_sig)
+                fake_token = f"{h_b64}.{p_b64}.{s_b64}"
+                
+                res = await self.engine.get(target, headers={"Authorization": f"Bearer {fake_token}"})
+                if res and res.status == 200:
+                    return Finding(
+                        vuln_type="JWT Weak Signature Secret",
+                        title=f"JWT signature uses weak/common secret -> '{s}'",
+                        endpoint=target, method="GET", payload=s,
+                        severity="CRITICAL", confirmed=True, module=self.NAME,
+                        cvss_score=CVSS_PROFILES["JWT_WEAK_SECRET"]["score"]
+                    )
+            except Exception:
+                continue
+        return None
 
     def _extract_token(self) -> Optional[str]:
         # Tries to find token in local engine headers or common config

@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Gustavo Barakinha. Licensed under MIT
 """
 scanner.py — Async Scan Orchestrator
 """
@@ -41,6 +42,7 @@ class Scanner:
         config:    Optional[ScannerConfig] = None,
         on_finding: Optional[Callable[[Any], None]] = None,
         dry_run:     bool = False,
+        ws_clients: Optional[set] = None,
     ):
         """
         Initializes the Scanner.
@@ -61,6 +63,7 @@ class Scanner:
         self.config_obj  = config or ScannerConfig()
         self.on_finding  = on_finding
         self.dry_run     = dry_run
+        self.ws_clients  = ws_clients or set()
         
         self.oast = OASTIntegration(self.engine, provider=self.config_obj.oast_provider or "interact.sh")
 
@@ -92,11 +95,8 @@ class Scanner:
 
         # Phase 1: Recon
         print("\n  [1/3] Reconnaissance …")
-        waf, tech = await asyncio.gather(
-            self.engine.detect_waf(self.target),
-            self.engine.fingerprint(self.target),
-        )
-        result.waf_detected = waf[0]
+        tech = await self.engine.fingerprint(self.target)
+        result.waf_detected = self.engine.waf_name
         result.technologies = tech
 
         # Phase 2: Discovery
@@ -120,11 +120,29 @@ class Scanner:
         )
 
         for findings in results:
-            if isinstance(findings, list) and self.on_finding:
+            if isinstance(findings, list):
                 for f in findings:
-                    self.on_finding(f)
                     result.add_finding(f)
+                    
+                    if self.ws_clients:
+                        import json
+                        import websockets
+                        msg = json.dumps({"type": "finding", "data": f.to_dict()})
+                        # Broadcast to all connected clients
+                        websockets.broadcast(self.ws_clients, msg)
 
-        result.end_time = datetime.utcnow().isoformat() + "Z"
+                    if self.on_finding:
+                        if asyncio.iscoroutinefunction(self.on_finding):
+                            await self.on_finding(f)
+                        else:
+                            self.on_finding(f)
+
+        end_time = datetime.utcnow()
+        result.end_time = end_time.isoformat() + "Z"
+        
+        # Calculate duration
+        start_dt = datetime.fromisoformat(result.start_time.rstrip('Z'))
+        result.duration_seconds = (end_time - start_dt).total_seconds()
+        
         result.total_requests = self.engine.request_count
         return result

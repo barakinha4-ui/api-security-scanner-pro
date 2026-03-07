@@ -26,7 +26,7 @@ class SSRFPlugin(BasePlugin):
     async def run(self, target: str, result: ScanResult) -> List[Finding]:
         self.log("Starting Enterprise-grade SSRF scan")
         findings: List[Finding] = []
-        endpoints = result.discovered_endpoints or [target]
+        endpoints = (result.discovered_endpoints or [target])[:20]
 
         for url in endpoints:
             # Test high-risk parameters with high-precision confirmation

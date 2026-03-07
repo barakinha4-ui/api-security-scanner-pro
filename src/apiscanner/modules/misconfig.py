@@ -25,7 +25,7 @@ class MisconfigPlugin(BasePlugin):
         findings: List[Finding] = []
 
         base_resp = await self.engine.get(target)
-        endpoints = result.discovered_endpoints or [target]
+        endpoints = (result.discovered_endpoints or [target])[:20]
 
         tasks = [
             self._test_security_headers(target, base_resp),
