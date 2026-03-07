@@ -1,20 +1,64 @@
 version: '3.8'
 
 services:
-  scanner:
+  app:
     build: .
-    container_name: scanner
-    env_file:
-      - .env
-    volumes:
-      - ./reports:/app/reports
-    # Example command to run a scan. Defaults back to --help if overridden
-    command: ["--target", "https://jsonplaceholder.typicode.com", "--output", "reports/report.html"]
+    command: gunicorn app:app -k uvicorn.workers.UvicornWorker --workers 4 --bind 0.0.0.0:8000
+    env_file: .env
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - frontend_net
+      - internal_net
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
 
-  dashboard:
-    image: nginx:alpine
-    container_name: dashboard
-    ports:
-      - "8080:80"
+  redis:
+    image: redis:7-alpine
+    command: --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - internal_net
     volumes:
-      - ./dashboard:/usr/share/nginx/html:ro
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./dashboard.html:/usr/share/nginx/html/index.html:ro
+      - ./certs:/certs:ro # Requer que a pasta ./certs possua fullchain.pem e privkey.pem
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - frontend_net
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost/health || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+networks:
+  frontend_net:
+    driver: bridge
+  internal_net:
+    driver: bridge
+    internal: true
+
+volumes:
+  redis_data:

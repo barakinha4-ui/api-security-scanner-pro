@@ -124,30 +124,186 @@ async def main_async(args) -> int:
 
     ws_clients = set()
     ws_server = None
+    progress_task = None
     if args.ws_port:
         try:
             import websockets
-            async def ws_handler(websocket):
-                ws_clients.add(websocket)
-                try:
-                    await websocket.wait_closed()
-                finally:
-                    ws_clients.remove(websocket)
-            ws_server = await websockets.serve(ws_handler, "localhost", args.ws_port)
-            print(f"  {c('✓', C.GREEN)} WebSocket server started on ws://localhost:{args.ws_port}")
-        except ImportError:
-            print("  [!] 'websockets' library not installed. Cannot start WS server.")
+            import jwt
+            import json
+            import uuid
+            from datetime import datetime, timezone
+            from urllib.parse import urlparse
+            from pydantic import BaseModel, ValidationError, Field
 
-    scanner = Scanner(
-        target     = args.target,
-        engine     = engine,
-        scan_type  = args.scan,
-        plugins    = args.plugins,
-        config     = conf,
-        on_finding = print_finding_live if not args.quiet else None,
-        dry_run    = args.dry_run,
-        ws_clients = ws_clients
-    )
+            jwt_secret = os.getenv("SUPABASE_JWT_SECRET", "super-secret-jwt-token-from-supabase")
+
+            class AuthMessage(BaseModel):
+                """Schema for initial WebSocket Auth Message."""
+                token: str
+                
+            class JWTPayload(BaseModel):
+                """Model for internal Payload extraction."""
+                sub: uuid.UUID
+                exp: int
+                roles: list[str] = Field(default_factory=list)
+
+                def is_valid(self) -> bool:
+                    return time.time() < self.exp
+            
+            class ProgressMessage(BaseModel):
+                """Schema for WebSocket Progress Broadcast."""
+                host: str
+                port: int
+                status: str
+                severity: str
+                timestamp: str
+                
+            ACTIVE_CLIENTS: dict[websockets.WebSocketServerProtocol, dict] = {}
+
+            async def websocket_handler(websocket: websockets.WebSocketServerProtocol, path: str = ""):
+                """
+                Handles incoming WebSocket connections exactly per specification.
+                1. Expects {"token": "JWT"}
+                2. Validates JWTPayload (Pydantic)
+                3. Invalid -> Close 1008
+                4. Valid -> Active list
+                """
+                peer = websocket.remote_address
+                conn_ts = datetime.now(timezone.utc).isoformat()
+                
+                try:
+                    auth_msg_raw = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+                    auth_msg = AuthMessage.model_validate_json(auth_msg_raw) if hasattr(AuthMessage, 'model_validate_json') else AuthMessage.parse_raw(auth_msg_raw)
+                    
+                    decoded = jwt.decode(auth_msg.token, jwt_secret, algorithms=["HS256"], options={"verify_exp": False, "verify_aud": False})
+                    payload = JWTPayload(**decoded)
+                    
+                    if not payload.is_valid():
+                        raise ValueError("JWT is expired")
+                        
+                    user_id = payload.sub
+                except (asyncio.TimeoutError, ValidationError, jwt.InvalidTokenError, ValueError) as e:
+                    logger.warning(json.dumps({"event": "ws_auth_failed", "reason": str(e), "ip": peer[0], "ts": conn_ts}))
+                    await websocket.close(1008, "Invalid or missing JWT Token")
+                    return
+                except Exception as e:
+                    await websocket.close(1008, "Internal Auth Error")
+                    return
+
+                # Auth Success
+                ACTIVE_CLIENTS[websocket] = {"last_seen": time.time(), "user_id": user_id}
+                logger.info(json.dumps({"event": "ws_connected", "user_id": str(user_id), "ip": peer[0], "ts": conn_ts}))
+
+                async def heartbeat_task():
+                    """Sends heartbeat every 30s"""
+                    while True:
+                        await asyncio.sleep(30)
+                        try:
+                            await websocket.send(json.dumps({"type": "heartbeat", "ts": datetime.now(timezone.utc).isoformat()}))
+                        except Exception:
+                            break
+
+                async def inactivity_task():
+                    """Monitors inactivity and closes with 1000 if > 5min unseen"""
+                    while True:
+                        await asyncio.sleep(10)
+                        state = ACTIVE_CLIENTS.get(websocket)
+                        if not state:
+                            break
+                        if time.time() - state["last_seen"] > 300: # 5 min timeout
+                            logger.info(json.dumps({"event": "ws_timeout", "user_id": str(state["user_id"]), "ip": peer[0], "ts": datetime.now(timezone.utc).isoformat()}))
+                            await websocket.close(1000, "Inactive for 5 minutes")
+                            break
+
+                hb_t = asyncio.create_task(heartbeat_task())
+                inact_t = asyncio.create_task(inactivity_task())
+
+                try:
+                    async for msg in websocket:
+                        if websocket in ACTIVE_CLIENTS:
+                            ACTIVE_CLIENTS[websocket]["last_seen"] = time.time()
+                except websockets.exceptions.ConnectionClosed:
+                    pass
+                finally:
+                    hb_t.cancel()
+                    inact_t.cancel()
+                    state = ACTIVE_CLIENTS.pop(websocket, None)
+                    if state:
+                        logger.info(json.dumps({"event": "ws_disconnected", "user_id": str(state["user_id"]), "ip": peer[0], "ts": datetime.now(timezone.utc).isoformat()}))
+
+            ws_server = await websockets.serve(websocket_handler, "0.0.0.0", args.ws_port)
+            print(f"  {c('✓', C.GREEN)} Native WebSocket server started on ws://0.0.0.0:{args.ws_port} (JWT Protected)")
+
+            async def broadcast_progress(scanner_event: ProgressMessage):
+                """Broadcasts to active authenticated clients"""
+                if not ACTIVE_CLIENTS:
+                    return
+                    
+                msg_dict = {"type": "finding"} # Frontend assumes findings or progress typings
+                msg_dict.update(scanner_event.model_dump() if hasattr(scanner_event, "model_dump") else scanner_event.dict())
+                msg_json = json.dumps(msg_dict)
+                
+                closed_clients = []
+                for ws_client in list(ACTIVE_CLIENTS.keys()):
+                    try:
+                        await ws_client.send(msg_json)
+                    except Exception:
+                        closed_clients.append(ws_client)
+                        
+                for c in closed_clients:
+                    ACTIVE_CLIENTS.pop(c, None)
+
+            async def scanner_callback(f):
+                """Interceptor connecting engine matches to JS WS clients"""
+                if not args.quiet:
+                    print_finding_live(f)
+                    
+                parsed = urlparse(args.target)
+                target_host = parsed.hostname or args.target
+                target_port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+                
+                prog = ProgressMessage(
+                    host=target_host,
+                    port=target_port,
+                    status="discovering",
+                    severity=f.severity,
+                    timestamp=datetime.now(timezone.utc).isoformat()
+                )
+                await broadcast_progress(prog)
+
+            scanner = Scanner(
+                target     = args.target,
+                engine     = engine,
+                scan_type  = args.scan,
+                plugins    = args.plugins,
+                config     = conf,
+                on_finding = scanner_callback,
+                dry_run    = args.dry_run
+            )
+
+        except ImportError as e:
+            print(f"  [!] Requirements 'websockets', 'PyJWT', or 'pydantic' dependencies missing: {e}")
+            args.ws_port = None
+            
+            scanner = Scanner(
+                target     = args.target,
+                engine     = engine,
+                scan_type  = args.scan,
+                plugins    = args.plugins,
+                config     = conf,
+                on_finding = print_finding_live if not args.quiet else None,
+                dry_run    = args.dry_run
+            )
+    else:
+        scanner = Scanner(
+            target     = args.target,
+            engine     = engine,
+            scan_type  = args.scan,
+            plugins    = args.plugins,
+            config     = conf,
+            on_finding = print_finding_live if not args.quiet else None,
+            dry_run    = args.dry_run
+        )
 
     print(f"\n  {c('Starting scan…', C.BOLD)}\n")
 

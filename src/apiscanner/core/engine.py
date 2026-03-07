@@ -71,8 +71,9 @@ class AsyncEngine:
     def __init__(
         self,
         *,
-        concurrency:  int   = 20,
-        timeout:      int   = 10,
+        concurrency:  int   = 50, # Optimizado: Limite Máx de 50 workers
+        timeout:      int   = 2,  # Optimizado: 2s timeout por host
+        max_retries:  int   = 3,  # Optimizado: 3 tentativas com backoff
         delay:        float = 0.2,
         stealth:      bool  = False,
         verify_ssl:   bool  = True,
@@ -81,8 +82,9 @@ class AsyncEngine:
         dry_run:      bool  = False,
         allow_internal: bool = False, # SSRF Protection Toggle
     ):
-        self.concurrency   = concurrency
+        self.concurrency   = min(concurrency, 50) # Boundary Estrito
         self.timeout       = timeout
+        self.max_retries   = max_retries
         self.base_delay    = delay
         self.stealth       = stealth
         self.verify_ssl    = verify_ssl
@@ -174,7 +176,10 @@ class AsyncEngine:
         data:    Optional[Any]            = None,
     ) -> Response:
         """
-        Safe async request with SSRF guard and rate limiting.
+        Executa uma requisição HTTP assíncrona segura encapsulada com:
+        - Proteção contra SSRF e limites globais (Rate Limiting)
+        - Pool de workers otimizado com controle via Semáforo 
+        - Telemetria de log estruturada
         """
         if self._is_ssrf_risk(url):
             logger.warning(f"SSRF Prevention: Blocked request to internal target -> {url}")
@@ -210,44 +215,89 @@ class AsyncEngine:
             clean_url = self._redact(url)
             logger.debug(f"Request: {method} {clean_url}")
 
-            if not self._client:
+            task_id = id(asyncio.current_task())
+            target_host = urlparse(url).hostname or "unknown"
+
+            if self._client is None:
                 # Fallback if not used as an async context manager
                 async with httpx.AsyncClient(verify=self.verify_ssl, timeout=float(self.timeout)) as tmp_client:
-                    return await self._execute(tmp_client, method, url, full_headers, params, json, data)
-            
-            return await self._execute(self._client, method, url, full_headers, params, json, data)
+                    return await self._execute_with_retry(tmp_client, method, url, full_headers, params, json, data, task_id, target_host)
+            else:
+                return await self._execute_with_retry(self._client, method, url, full_headers, params, json, data, task_id, target_host)
 
-    async def _execute(self, client: httpx.AsyncClient, method: str, url: str, 
-                        headers: dict, params: Optional[dict], json: Any, data: Any) -> Response:
-        t0 = time.perf_counter()
-        try:
-            r = await client.request(
-                method.upper(), url,
-                headers=headers, params=params,
-                json=json, data=data
-            )
-            elapsed = (time.perf_counter() - t0) * 1000
+    async def _execute_with_retry(
+        self, 
+        client: httpx.AsyncClient, 
+        method: str, 
+        url: str, 
+        headers: dict, 
+        params: Optional[dict], 
+        json: Any, 
+        data: Any,
+        task_id: int,
+        target_host: str,
+    ) -> Response:
+        """
+        Motor iterativo de requisições tolerante a falhas (Fault Tolerant).
+        Implementa Retry Loop (padrão 3x) com Backoff Exponencial para estabilizar varreduras pesadas.
+        """
+        attempt: int = 0
+        backoff: float = 1.0 # Multiplicador de Espera Exponencial
+        last_error: str = "Unknown"
+        resp: Optional[Response] = None
+
+        while attempt < self.max_retries:
+            attempt += 1
+            t0 = time.perf_counter()
+            try:
+                r = await client.request(
+                    method.upper(), url,
+                    headers=headers, params=params,
+                    json=json, data=data
+                )
+                elapsed = (time.perf_counter() - t0) * 1000
+                
+                resp = Response(
+                    url=url, method=method,
+                    status=r.status_code,
+                    headers=dict(r.headers),
+                    body=r.text,
+                    elapsed_ms=elapsed
+                )
+                
+                async with self._lock:
+                    self._req_count += 1
+                
+                self._detect_waf_passive(resp)
+                
+                logger.info(f"[Task-{task_id}] [Host: {target_host}] {method} {url} - Status: {resp.status} - Time: {elapsed:.2f}ms (Attempt {attempt}/{self.max_retries})")
+                
+                # Falhas de servidor acionam os retries
+                if resp.status in (429, 500, 502, 503, 504) and attempt < self.max_retries:
+                    pass
+                else:
+                    return resp
+
+            except httpx.TimeoutException:
+                async with self._lock: self._err_count += 1
+                last_error = "Timeout"
+                elapsed = (time.perf_counter() - t0) * 1000
+                logger.warning(f"[Task-{task_id}] [Host: {target_host}] {method} {url} - Status: Timeout - Time: {elapsed:.2f}ms (Attempt {attempt}/{self.max_retries})")
+            except Exception as e:
+                async with self._lock: self._err_count += 1
+                last_error = str(e)
+                elapsed = (time.perf_counter() - t0) * 1000
+                logger.error(f"[Task-{task_id}] [Host: {target_host}] {method} {url} - Status: Error ({last_error}) - Time: {elapsed:.2f}ms (Attempt {attempt}/{self.max_retries})")
             
-            resp = Response(
-                url=url, method=method,
-                status=r.status_code,
-                headers=dict(r.headers),
-                body=r.text,
-                elapsed_ms=elapsed
-            )
-            
-            async with self._lock:
-                self._req_count += 1
-            
-            self._detect_waf_passive(resp)
+            # Backoff Delay antes da próxima tentativa
+            if attempt < self.max_retries:
+                logger.debug(f"[Task-{task_id}] Backoff acionado. Pausa de {backoff}s antes de reincidir.")
+                await asyncio.sleep(backoff)
+                backoff *= 2.0
+
+        if resp is not None:
             return resp
-
-        except httpx.TimeoutException:
-            async with self._lock: self._err_count += 1
-            return Response(url=url, method=method, error="Timeout")
-        except Exception as e:
-            async with self._lock: self._err_count += 1
-            return Response(url=url, method=method, error=str(e))
+        return Response(url=url, method=method, error=last_error)
 
     # ── Convenience Wrappers ──────────────────────────────────────────────
 

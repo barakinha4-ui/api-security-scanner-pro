@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaaS Security Scanner - Live Report</title>
+    <!-- Fontes Modernas -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* 
+          GLASSMORPHISM DARK MODE NEON
+          Variáveis Base de Interface 
+        */
+        :root {
+            --bg-dark: #0f0f1a;
+            --glass-bg: rgba(20, 20, 35, 0.4);
+            --glass-border: rgba(0, 245, 255, 0.2);
+            --cyan-neon: #00f5ff;
+            --cyan-glow: rgba(0, 245, 255, 0.6);
+            --text-main: #f0f4f8;
+            --text-muted: #8b94a5;
+
+            /* Indicadores de Severidade e Status */
+            --status-connected: #00ff88;
+            --status-disconnected: #ff2a55;
+            --status-connecting: #ffb800;
+
+            --sev-critical: #ff2a55;
+            --sev-high: #ff8c00;
+            --sev-medium: #ffcc00;
+            --sev-low: #8b94a5;
+
+            --font-sans: 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(0, 245, 255, 0.05), transparent 30%),
+                radial-gradient(circle at 85% 30%, rgba(255, 42, 85, 0.03), transparent 35%);
+        }
+
+        /* Utils Glassmorphism */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 
+          ==========================
+          HEADER E CONTROLES
+          ==========================
+        */
+        header {
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(15, 15, 26, 0.8);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+        }
+
+        .title-accent {
+            color: var(--cyan-neon);
+            text-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        .conn-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            width: 250px;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--cyan-neon);
+            box-shadow: 0 0 8px var(--cyan-glow);
+        }
+
+        button {
+            background: rgba(0, 245, 255, 0.1);
+            color: var(--cyan-neon);
+            border: 1px solid var(--cyan-neon);
+            padding: 0.6rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.85rem;
+        }
+
+        button:hover {
+            background: var(--cyan-neon);
+            color: #000;
+            box-shadow: 0 0 15px var(--cyan-glow);
+        }
+
+        /* Indicador de Status Visual */
+        #status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .state-disconnected .led {
+            background: var(--status-disconnected);
+            box-shadow: 0 0 10px var(--status-disconnected);
+        }
+
+        .state-disconnected span {
+            color: var(--status-disconnected);
+        }
+
+        .state-connected .led {
+            background: var(--status-connected);
+            box-shadow: 0 0 10px var(--status-connected);
+        }
+
+        .state-connected span {
+            color: var(--status-connected);
+        }
+
+        .state-connecting .led {
+            background: var(--status-connecting);
+            box-shadow: 0 0 10px var(--status-connecting);
+            animation: blink 1s infinite alternate;
+        }
+
+        .state-connecting span {
+            color: var(--status-connecting);
+        }
+
+        /* 
+          ==========================
+          LAYOUT PRINCIPAL
+          ==========================
+        */
+        main {
+            padding: 2rem;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Grid Lateral (Stats) */
+        .stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--text-muted);
+        }
+
+        .stat-card.neon-cyan::before {
+            background: var(--cyan-neon);
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        .stat-card.neon-red::before {
+            background: var(--sev-critical);
+            box-shadow: 0 0 10px var(--sev-critical);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Progress Bar Animada */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--cyan-neon);
+            box-shadow: 0 0 10px var(--cyan-glow);
+            transition: width 0.3s ease;
+        }
+
+        .running .progress-bar {
+            background-image: linear-gradient(45deg,
+                    rgba(255, 255, 255, 0.15) 25%,
+                    transparent 25%,
+                    transparent 50%,
+                    rgba(255, 255, 255, 0.15) 50%,
+                    rgba(255, 255, 255, 0.15) 75%,
+                    transparent 75%,
+                    transparent);
+            background-size: 1rem 1rem;
+            animation: progress-stripes 1s linear infinite;
+        }
+
+        /* 
+          ==========================
+          TERMINAL (CONSOLE LOGS)
+          ==========================
+        */
+        .terminal-container {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-title {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Scrollable do Console */
+        .terminal-body {
+            background: #05050a;
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        .log-line {
+            margin-bottom: 0.4rem;
+            word-break: break-all;
+            opacity: 0;
+            animation: slideIn 0.3s forwards;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timestamp {
+            color: #5c6370;
+            margin-right: 12px;
+            user-select: none;
+        }
+
+        /* Cores de Severidade / Findings */
+        .finding-box {
+            padding: 10px 14px;
+            margin: 6px 0 12px 0;
+            border-left: 3px solid transparent;
+            border-radius: 0 6px 6px 0;
+            display: inline-block;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.02);
+            font-family: var(--font-mono);
+        }
+
+        .finding-box.CRITICAL {
+            border-left-color: var(--sev-critical);
+            background: rgba(255, 42, 85, 0.08);
+        }
+
+        .finding-box.CRITICAL strong {
+            color: var(--sev-critical);
+            text-shadow: 0 0 8px var(--sev-critical);
+            animation: danger-pulse 1.5s infinite;
+        }
+
+        .finding-box.HIGH {
+            border-left-color: var(--sev-high);
+            background: rgba(255, 140, 0, 0.08);
+        }
+
+        .finding-box.HIGH strong {
+            color: var(--sev-high);
+        }
+
+        .finding-box.MEDIUM {
+            border-left-color: var(--sev-medium);
+            background: rgba(255, 204, 0, 0.05);
+        }
+
+        .finding-box.MEDIUM strong {
+            color: var(--sev-medium);
+        }
+
+        .finding-box.LOW {
+            border-left-color: var(--sev-low);
+        }
+
+        .finding-box.LOW strong {
+            color: var(--sev-low);
+        }
+
+        .finding-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Animações */
+        @keyframes blink {
+            to {
+                opacity: 0.3;
+            }
+        }
+
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+        }
+
+        @keyframes progress-stripes {
+            from {
+                background-position: 1rem 0;
+            }
+
+            to {
+                background-position: 0 0;
+            }
+        }
+
+        @keyframes danger-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* Media Queries - Responsividade */
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .stat-card {
+                flex: 1;
+                min-width: 200px;
+            }
+
+            .terminal-container {
+                min-height: 500px;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 1.5rem;
+                align-items: stretch;
+            }
+
+            .conn-controls {
+                flex-direction: column;
+            }
+
+            .conn-controls input,
+            .conn-controls button {
+                width: 100%;
+            }
+
+            #status-indicator {
+                justify-content: center;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 245, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 245, 255, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="brand">
+            <span class="title">SaaS Scanner <span class="title-accent">PRO</span></span>
+        </div>
+
+        <div class="conn-controls">
+            <input type="text" id="ws_url" placeholder="ws://localhost:8765" spellcheck="false">
+            <input type="password" id="jwt_token" placeholder="Authorization (JWT)...">
+            <button id="btn_connect" onclick="wsManager.toggleConnection()">Conectar</button>
+            <div id="status-indicator" class="state-disconnected">
+                <div class="led"></div>
+                <span id="txt-status">Desconectado</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <aside class="stats-grid">
+            <div class="stat-card glass-panel neon-cyan">
+                <span class="stat-label">Total Findings</span>
+                <span class="stat-value" id="val_findings" style="color: var(--cyan-neon)">0</span>
+                <div class="progress-container running">
+                    <div class="progress-bar" id="progress_bar"></div>
+                </div>
+            </div>
+
+            <div class="stat-card glass-panel neon-red">
+                <span class="stat-label">Critical / High Alerts</span>
+                <span class="stat-value" id="val_criticals" style="color: var(--sev-critical)">0</span>
+                <span class="stat-sub">Requerem Atenção Imediata</span>
+            </div>
+
+            <div class="stat-card glass-panel">
+                <span class="stat-label">Active Host</span>
+                <span class="stat-value" id="val_host"
+                    style="font-size: 1.2rem; word-break: break-all;">Aguardando...</span>
+                <span class="stat-sub" id="val_port">Porta: --</span>
+            </div>
+
+            <div class="stat-card glass-panel">
+                <span class="stat-label">Heartbeat Pulse (Uptime)</span>
+                <span class="stat-value" id="val_last_ping" style="font-size: 1.5rem;">N/D</span>
+                <span class="stat-sub" id="val_uptime_since">Tempo real</span>
+            </div>
+        </aside>
+
+        <div class="terminal-container glass-panel">
+            <div class="terminal-header">
+                <span class="terminal-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-neon)"
+                        stroke-width="2" style="margin-right:8px;">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" y1="19" x2="20" y2="19"></line>
+                    </svg>
+                    CONSOLE // LIVE EVENT STREAM
+                </span>
+                <span style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">[READ
+                    ONLY]</span>
+            </div>
+            <div class="terminal-body" id="term_body">
+                <!-- Logs aparecerão aqui via JS -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * ENGINE DO TERMINAL DOM
+         */
+        const Terminal = {
+            el: document.getElementById('term_body'),
+            formatTimestamp: () => {
+                const d = new Date();
+                return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}.${d.getMilliseconds().toString().padStart(3, '0')}`;
+            },
+
+            appendStr: (htmlString) => {
+                const div = document.createElement('div');
+                div.className = 'log-line';
+                div.innerHTML = `<span class="timestamp">[${Terminal.formatTimestamp()}]</span> <span>${htmlString}</span>`;
+                Terminal.el.appendChild(div);
+                Terminal.scrollToBottom();
+            },
+
+            appendFinding: (msg) => {
+                const severity = (msg.severity || 'LOW').toUpperCase();
+                const div = document.createElement('div');
+                div.className = `log-line`;
+
+                div.innerHTML = `
+                    <div><span class="timestamp">[${Terminal.formatTimestamp()}]</span> <span style="color: var(--text-muted);">Nova vulnerabilidade descoberta:</span></div>
+                    <div class="finding-box ${severity}">
+                        <strong>[${severity}] ${msg.title || 'Vulnerabilidade Genérica Reportada'}</strong><br>
+                        <div class="finding-meta">
+                            <span>Target: ${msg.host || 'unknown'}</span>
+                            <span>Endpoint: ${msg.endpoint || '/'}</span>
+                        </div>
+                    </div>
+                `;
+                Terminal.el.appendChild(div);
+                Terminal.scrollToBottom();
+            },
+
+            scrollToBottom: () => {
+                // Autoscroll suave: só desce se já estivesse perdo do final,
+                // prevenindo incomodar do usuário caso ele tenha rolado pra cima.
+                if (Terminal.el.scrollHeight - Terminal.el.scrollTop < Terminal.el.clientHeight + 150) {
+                    Terminal.el.scrollTop = Terminal.el.scrollHeight;
+                }
+            }
+        };
+
+        /**
+         * CONTROLADOR DA UI
+         */
+        const DashboardUI = {
+            findingsTotal: 0,
+            criticalHighTotal: 0,
+
+            initInputs: () => {
+                const ws_url = localStorage.getItem('ws_url_pro') || 'ws://localhost:8765';
+                const token = localStorage.getItem('jwt_token_pro') || '';
+                document.getElementById('ws_url').value = ws_url;
+                document.getElementById('jwt_token').value = token;
+            },
+
+            saveInputs: () => {
+                localStorage.setItem('ws_url_pro', document.getElementById('ws_url').value.trim());
+                localStorage.setItem('jwt_token_pro', document.getElementById('jwt_token').value.trim());
+            },
+
+            setState: (stateName) => {
+                const indicator = document.getElementById('status-indicator');
+                const btn = document.getElementById('btn_connect');
+                const txt = document.getElementById('txt-status');
+                const pBar = document.getElementById('progress_bar');
+
+                indicator.className = `state-${stateName}`;
+
+                if (stateName === 'connected') {
+                    txt.innerText = 'CONECTADO';
+                    btn.innerText = 'Desconectar';
+                    btn.style.color = 'var(--status-disconnected)';
+                    btn.style.borderColor = 'var(--status-disconnected)';
+                    pBar.style.width = "100%";
+                } else if (stateName === 'connecting') {
+                    txt.innerText = 'RECONECTANDO...';
+                    btn.innerText = 'Abortar';
+                    btn.style.color = 'var(--status-connecting)';
+                    btn.style.borderColor = 'var(--status-connecting)';
+                    pBar.style.width = "50%";
+                } else {
+                    txt.innerText = 'DESCONECTADO';
+                    btn.innerText = 'Conectar';
+                    btn.style.color = 'var(--cyan-neon)';
+                    btn.style.borderColor = 'var(--cyan-neon)';
+                    pBar.style.width = "0%";
+                }
+            },
+
+            updateHostProgress: (host, port, statusStr) => {
+                document.getElementById('val_host').innerText = host || 'Aguardando...';
+                document.getElementById('val_port').innerText = `Porta: ${port || '--'}`;
+                // Poderíamos usar o `statusStr` se fôssemos refletir "idle", "scanning", etc.
+            },
+
+            updateHeartbeat: (isoString) => {
+                try {
+                    const d = new Date(isoString);
+                    document.getElementById('val_last_ping').innerText = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+                } catch (e) { }
+            },
+
+            incrementFinding: (severity) => {
+                DashboardUI.findingsTotal++;
+                document.getElementById('val_findings').innerText = DashboardUI.findingsTotal;
+
+                if (severity === 'CRITICAL' || severity === 'HIGH') {
+                    DashboardUI.criticalHighTotal++;
+                    document.getElementById('val_criticals').innerText = DashboardUI.criticalHighTotal;
+                }
+            }
+        };
+
+        /**
+         * WEBSOCKET MANAGER (Puro JS, Zero Dependencies)
+         * - Envia First Message {"token": JWT} pois o navegador (browser native WebSocket) não permite custom Headers Authorization.
+         * - Se user passou `jwt_token`, o backend Python (AuthMessage Pydantic) irá extrair o JWT e autenticar.
+         */
+        const wsManager = {
+            socket: null,
+            isConnected: false,
+            forcedDisconnect: false,
+            reconnectAttempts: 0,
+
+            toggleConnection: () => {
+                if (wsManager.isConnected || wsManager.socket != null) {
+                    // Usuário clicou em Desconectar/Abortar Manual
+                    wsManager.forcedDisconnect = true;
+                    if (wsManager.socket) {
+                        wsManager.socket.close(1000, "User manual disconnect");
+                    }
+                    DashboardUI.setState('disconnected');
+                    Terminal.appendStr(`<span style="color: var(--text-muted)">Conexão encerrada pelo usuário.</span>`);
+                } else {
+                    wsManager.forcedDisconnect = false;
+                    wsManager.reconnectAttempts = 0;
+                    DashboardUI.saveInputs();
+                    wsManager.connect();
+                }
+            },
+
+            connect: () => {
+                if (wsManager.socket && wsManager.socket.readyState !== WebSocket.CLOSED) return;
+
+                const url = document.getElementById('ws_url').value.trim();
+                const jwt = document.getElementById('jwt_token').value.trim();
+
+                if (!url) {
+                    Terminal.appendStr(`<span style="color: var(--sev-critical)">Erro: URL do WebSocket exigida.</span>`);
+                    return;
+                }
+
+                DashboardUI.setState('connecting');
+                Terminal.appendStr(`<span style="color: var(--status-connecting)">Engatando handshake com ${url}...</span>`);
+
+                try {
+                    // Native HTML5 WebSocket Instance
+                    wsManager.socket = new WebSocket(url);
+                } catch (e) {
+                    Terminal.appendStr(`<span style="color: var(--sev-critical)">Falha na construção WS: ${e.message}</span>`);
+                    DashboardUI.setState('disconnected');
+                    wsManager.executeBackoff();
+                    return;
+                }
+
+                // Callbacks Nativos
+                wsManager.socket.onopen = (e) => {
+                    Terminal.appendStr(`<span style="color: var(--status-connected)">Socket TCP/TLS Aberto. Enviando Autenticação (JWT)...</span>`);
+
+                    // Nota arquitetural: Enviamos o token como JSON na primeira mensagem pois o navegador n permite injetar Headers.
+                    if (jwt) {
+                        wsManager.socket.send(JSON.stringify({ "token": jwt }));
+                    } else {
+                        Terminal.appendStr(`<span style="color: var(--sev-high)">Aviso: Nenhum JWT providenciado (Tentar anônimo).</span>`);
+                    }
+
+                    wsManager.isConnected = true;
+                    wsManager.reconnectAttempts = 0; // Reset Backoff success
+                    DashboardUI.setState('connected');
+                };
+
+                wsManager.socket.onmessage = (e) => {
+                    try {
+                        const payload = JSON.parse(e.data);
+
+                        if (payload.type === 'heartbeat') {
+                            DashboardUI.updateHeartbeat(payload.ts || payload.timestamp);
+                        }
+                        else if (payload.type === 'progress') {
+                            DashboardUI.updateHostProgress(payload.host, payload.port, payload.status);
+                        }
+                        else if (payload.type === 'finding') {
+                            DashboardUI.incrementFinding(payload.severity);
+                            Terminal.appendFinding(payload);
+                            DashboardUI.updateHostProgress(payload.host, payload.port, payload.status);
+                        }
+                        else {
+                            // Loga objetos genéricos se houver
+                            Terminal.appendStr(`Payload: <span style="color:var(--text-muted)">${JSON.stringify(payload)}</span>`);
+                        }
+                    } catch (err) {
+                        Terminal.appendStr(`Raw Text: ${e.data}`);
+                    }
+                };
+
+                wsManager.socket.onclose = (e) => {
+                    wsManager.socket = null;
+                    wsManager.isConnected = false;
+
+                    DashboardUI.setState('disconnected');
+
+                    // 1008 = Policy Violation (O PyJWT do Backend ejetou o cliente por Token Iválido/Expirado)
+                    if (e.code === 1008) {
+                        Terminal.appendStr(`<strong style="color: var(--sev-critical)">ACESSO NEGADO (Código 1008)</strong>: O servidor rejeitou o JWT fornecido.`);
+                        wsManager.forcedDisconnect = true; // Para de tentar logar num token que quebrou
+                    }
+                    else if (e.code === 1000) {
+                        Terminal.appendStr(`<span style="color: var(--text-muted)">Sessão encerrada limpa pelo Servidor (Timeout / Fim de Scan).</span>`);
+                        // Desativar auto-reconnect se foi uma saída pacífica
+                        wsManager.forcedDisconnect = true;
+                    } else {
+                        Terminal.appendStr(`<strong style="color: var(--sev-high)">Conexão perdida (Socket Code ${e.code}).</strong>`);
+                    }
+
+                    if (!wsManager.forcedDisconnect) {
+                        wsManager.executeBackoff();
+                    }
+                };
+
+                wsManager.socket.onerror = (e) => {
+                    Terminal.appendStr(`<strong style="color: var(--sev-critical)">Erro crasso de Redes. Verifique o Gateway/SSL.</strong>`);
+                };
+            },
+
+            executeBackoff: () => {
+                // Matemática do Backoff Exponencial (2s, 4s, 8s, 16s, max 30s)
+                const delay = Math.min(30000, 2000 * Math.pow(2, wsManager.reconnectAttempts));
+                wsManager.reconnectAttempts++;
+
+                Terminal.appendStr(`<span style="color: var(--status-connecting)">Backoff Engine ativado. Retentando em ${delay / 1000}s... (Tentativa ${wsManager.reconnectAttempts})</span>`);
+                DashboardUI.setState('connecting');
+
+                setTimeout(() => {
+                    if (!wsManager.forcedDisconnect && !wsManager.isConnected) {
+                        wsManager.connect();
+                    }
+                }, delay);
+            }
+        };
+
+        // Bootstrap App
+        document.addEventListener('DOMContentLoaded', () => {
+            DashboardUI.initInputs();
+            Terminal.appendStr('Inicializando Módulo Gráfico de Lógica Ciber-Segura...');
+            Terminal.appendStr('Status LocalStorage: <span style="color: var(--cyan-neon)">OK! Informações restauradas.</span>');
+            Terminal.appendStr('Aguardando Input de Conexão...');
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,168 @@
+name: API Security Scanner Pro CI/CD
+
+# ------------------------------------------------------------------------------
+# TRIGGERS: Executado ao fazer Push ou Pull Request na branch principal (main).
+# ------------------------------------------------------------------------------
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# ------------------------------------------------------------------------------
+# PERMISSÕES GLOBAIS: Necessárias para publicar no GHCR (GitHub Container Registry) 
+# e criar Tags/Releases automáticas a partir do token do GitHub Actions.
+# ------------------------------------------------------------------------------
+permissions:
+  contents: write    # Permite criação de releases/tags via semantic-release
+  packages: write    # Permite push de imagens Docker para o ghcr.io
+  pull-requests: read
+
+jobs:
+  # ============================================================================
+  # JOB 1: LINTING & QUALIDADE DE CÓDIGO
+  # ============================================================================
+  lint:
+    name: Code Quality (Flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Linter
+        run: pip install flake8
+
+      - name: Run Flake8
+        # Verifica pep-8 e impede que o código quebre convenções (ignora E501 = Line too long)
+        run: flake8 src/ app.py --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  # ============================================================================
+  # JOB 2: TESTES UNITÁRIOS COM PYTEST E COVERAGE
+  # Depende do job "lint": Se a qualidade estiver ruim, não consome minutos testando.
+  # ============================================================================
+  test:
+    name: Pytest & Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          # --------------------------------------------------------------------
+          # CACHE DE DEPENDÊNCIAS: Salva o estado do pip baseado no Hash do
+          # requirements.txt, acelerando massivamente execuções futuras do CI/CD.
+          # --------------------------------------------------------------------
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov respx websockets
+
+      - name: Run Tests
+        # Executa a suíte de testes do projeto e gera um relatório de cobertura HTML
+        run: pytest tests/ --cov=src --cov=app --cov-report=xml
+
+  # ============================================================================
+  # JOB 3: BUILD & PUBLISH DA IMAGEM DOCKER (GHCR)
+  # Roda apenas em eventos de "push" na branch main para não popular o registry em PRs.
+  # ============================================================================
+  build-and-push:
+    name: Publish Docker Image to GHCR
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ============================================================================
+  # JOB 4: AUTOMATIC RELEASE (Conventional Commits)
+  # Responsável por ler a timeline de commits ("feat:", "fix:", "BREAKING CHANGE:")
+  # e gerar uma nova versão oficial (Release) na interface de repositório.
+  # ============================================================================
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessário recuperar todas as tags para o semantic release calcular o range
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "iron"
+
+      - name: Run Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Lança a lib npx sem precisar manter localmente; gerencia CHANGELOG e Tags
+        run: npx semantic-release
+
+  # ============================================================================
+  # JOB 5: NOTIFICAÇÃO (SLACK / DISCORD)
+  # Dispara no final de toda a pipeline comunicando à equipe o status final.
+  # ============================================================================
+  notify:
+    name: Discord / Slack Webhook
+    runs-on: ubuntu-latest
+    needs: [lint, test, build-and-push, release]
+    # Executa mesmo se jobs anteriores falharem (always()), permitindo notificar falhas "❌"
+    if: always() 
+    steps:
+      - name: Notify Team via Webhook
+        env:
+          STATUS: ${{ job.status }}
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }} # Adicione esta Secret no repo
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "Nenhuma Secret WEBHOOK configurada. Pulando notificação."
+            exit 0
+          fi
+          
+          # Formata mensagem condicionalmente de acordo com o Status da Build.
+          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.build-and-push.result }}" == "success" ]; then
+            EMOJI="✅"
+            MESSAGE="*Deploy Success*: API Scanner CI/CD Pipeline completada com sucesso na branch \`${{ github.ref }}\`!"
+          else
+            EMOJI="🚨"
+            MESSAGE="*Build Failed*: Falha crítica detectada na nova push de \`${{ github.actor }}\`."
+          fi
+          
+          # Envia Payload JSON Padrão (Compatível tanto com Discord quanto conversão p/ Slack)
+          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$EMOJI $MESSAGE\"}" $WEBHOOK_URL
