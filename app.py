@@ -165,9 +165,37 @@ async def lifespan_app(app: FastAPI):
 
 # Configuração FastAPI
 app = FastAPI(
-    title="SaaS Scanner Pro",
+    title="API Security Scanner Pro",
+    description="""## Enterprise API Vulnerability Scanner
+    
+### Funcionalidades
+- **Scanner de Vulnerabilidades**: Detecte SQLi, XSS, BOLA, IDOR, SSRF e mais
+- **Autenticação Automática**: Suporte a JWT, OAuth, API Keys, Basic Auth
+- **Relatórios Profissionais**: Export em JSON, HTML, Markdown, SARIF
+- **Integração CI/CD**: GitHub Actions, GitLab CI, Jenkins
+- **GraphQL Support**: Detecção específica de vulnerabilidades GraphQL
+
+### Planos
+- **Gratuito**: 5 scans/mês, até 50 endpoints
+- **Pro**: Scans ilimitados, API access, suporte prioritário
+- **Enterprise**: Instalações on-premise, SLA garantido
+
+### Autenticação
+Use o header `Authorization: Bearer <token>` com seu token de API.""",
     version="2.1.0",
     lifespan=lifespan_app,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    contact={
+        "name": "API Security Scanner Pro",
+        "url": "https://api-security-scanner.pro",
+        "email": "contato@api-security-scanner.pro"
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT"
+    },
 )
 
 _allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")

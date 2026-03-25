@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Security Scanner Pro - Enterprise Vulnerability Detection</title>
+    <meta name="description" content="Scanner de vulnerabilidades de API de nível enterprise. Detecte SQL Injection, XSS, BOLA, IDOR, SSRF e muito mais.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0ea5e9',
+                        secondary: '#8b5cf6',
+                        dark: '#0f172a',
+                        darker: '#020617'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-text {
+            background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glow {
+            box-shadow: 0 0 60px rgba(14, 165, 233, 0.3);
+        }
+        .card-glow:hover {
+            box-shadow: 0 0 40px rgba(14, 165, 233, 0.2);
+        }
+        .float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body class="bg-darker text-white">
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 bg-darker/90 backdrop-blur-md border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+                    <i class="fas fa-shield-halved text-white"></i>
+                </div>
+                <span class="font-bold text-xl">API Security<span class="text-primary">Pro</span></span>
+            </div>
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#features" class="text-gray-300 hover:text-white transition">Recursos</a>
+                <a href="#como-funciona" class="text-gray-300 hover:text-white transition">Como Funciona</a>
+                <a href="#precos" class="text-gray-300 hover:text-white transition">Preços</a>
+                <a href="#contato" class="text-gray-300 hover:text-white transition">Contato</a>
+                <a href="https://app.api-scanner.pro" class="bg-primary hover:bg-primary/80 px-5 py-2 rounded-lg font-medium transition">
+                    Login
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center pt-20 relative overflow-hidden">
+        <!-- Background Effects -->
+        <div class="absolute inset-0">
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div class="max-w-7xl mx-auto px-6 py-20 relative z-10">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-2 mb-6">
+                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        <span class="text-sm text-gray-300">Agora com suporte a GraphQL</span>
+                    </div>
+                    
+                    <h1 class="text-5xl lg:text-6xl font-bold leading-tight mb-6">
+                        Proteja suas APIs contra
+                        <span class="gradient-text">vulnerabilidades</span>
+                    </h1>
+                    
+                    <p class="text-xl text-gray-400 mb-8 leading-relaxed">
+                        Scanner de vulnerabilidades de nível enterprise para REST e GraphQL. 
+                        Detecte SQL Injection, XSS, BOLA, IDOR, SSRF e mais de 50+ tipos de falhas 
+                        antes que hackers encontrem.
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="#demo" class="bg-primary hover:bg-primary/80 px-8 py-4 rounded-xl font-bold text-lg transition glow text-center">
+                            <i class="fas fa-play mr-2"></i> Ver Demo
+                        </a>
+                        <a href="#documentacao" class="border border-white/20 hover:border-white/40 px-8 py-4 rounded-xl font-medium text-lg transition text-center">
+                            <i class="fas fa-book mr-2"></i> Documentação
+                        </a>
+                    </div>
+                    
+                    <!-- Stats -->
+                    <div class="grid grid-cols-3 gap-8 mt-12 pt-8 border-t border-white/10">
+                        <div>
+                            <div class="text-3xl font-bold text-primary">50+</div>
+                            <div class="text-gray-500 text-sm">Vulnerabilidades</div>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold text-primary">99.9%</div>
+                            <div class="text-gray-500 text-sm">Precisão</div>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold text-primary">&lt;2min</div>
+                            <div class="text-gray-500 text-sm">Tempo Médio</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terminal Demo -->
+                <div class="relative float">
+                    <div class="bg-dark rounded-2xl border border-white/10 overflow-hidden glow">
+                        <div class="bg-white/5 px-4 py-3 flex items-center gap-2">
+                            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                            <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span class="ml-4 text-gray-400 text-sm font-mono">api-scanner --target https://api.exemplo.com --scan full</span>
+                        </div>
+                        <div class="p-6 font-mono text-sm">
+                            <div class="text-gray-400">$ Scanning target: https://api.exemplo.com</div>
+                            <div class="text-gray-400 mt-2">[+] Discovery: 24 endpoints found</div>
+                            <div class="text-yellow-400 mt-2">[!] Testing: SQL Injection</div>
+                            <div class="text-yellow-400">    [-] POST /api/users - Parameter: id</div>
+                            <div class="text-red-500 mt-2">[CRITICAL] SQL Injection confirmed!</div>
+                            <div class="text-red-500">    CVSS: 9.8 | Confidence: 98%</div>
+                            <div class="text-yellow-400 mt-2">[!] Testing: BOLA</div>
+                            <div class="text-red-500">[HIGH] BOLA - IDOR detected!</div>
+                            <div class="text-yellow-400 mt-2">[!] Testing: XSS</div>
+                            <div class="text-gray-500">    [-] No XSS vulnerabilities found</div>
+                            <div class="text-green-400 mt-4">[✓] Scan complete!</div>
+                            <div class="text-green-400">    Critical: 1 | High: 2 | Medium: 3 | Low: 1</div>
+                            <div class="text-primary mt-2">    Report saved to: ./reports/scan_2024.json</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="py-24 bg-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4">Recursos <span class="gradient-text">Profissionais</span></h2>
+                <p class="text-xl text-gray-400">Tudo que você precisa para proteger suas APIs</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 card-glow transition">
+                    <div class="w-14 h-14 bg-primary/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-bolt text-primary text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Scanner Ultra Rápido</h3>
+                    <p class="text-gray-400">Engine assíncrono com threading automático. Escaneie centenas de endpoints em minutos.</p>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 card-glow transition">
+                    <div class="w-14 h-14 bg-secondary/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-ghost text-secondary text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Detecção de OWASP</h3>
+                    <p class="text-gray-400">Cobertura completa OWASP Top 10 API + vulnerabilidades específicas de GraphQL.</p>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 card-glow transition">
+                    <div class="w-14 h-14 bg-green-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-fingerprint text-green-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Autenticação Automática</h3>
+                    <p class="text-gray-400">Suporte a JWT, OAuth, API Keys, Basic Auth e tokens Bearer. Detecta automaticamente.</p>
+                </div>
+                
+                <!-- Feature 4 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 card-glow transition">
+                    <div class="w-14 h-14 bg-orange-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-file-code text-orange-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Relatórios Profissionais</h3>
+                    <p class="text-gray-400">Export em JSON, HTML, Markdown e SARIF. Pronto para integração CI/CD.</p>
+                </div>
+                
+                <!-- Feature 5 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 card-glow transition">
+                    <div class="w-14 h-14 bg-pink-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-satellite-dish text-pink-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">OAST Integration</h3>
+                    <p class="text-gray-400">Detecte vulnerabilidades cegas (blind SSRF, blind SQLi) via callbacks externos.</p>
+                </div>
+                
+                <!-- Feature 6 -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8 card-glow transition">
+                    <div class="w-14 h-14 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-rocket text-cyan-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">CI/CD Ready</h3>
+                    <p class="text-gray-400">Integração com GitHub Actions, GitLab CI e Jenkins. Automatize sua segurança.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="precos" class="py-24">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold mb-4">Planos <span class="gradient-text">Flexíveis</span></h2>
+                <p class="text-xl text-gray-400">Escolha o plano ideal para suas necessidades</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <!-- Free -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8">
+                    <h3 class="text-xl font-bold mb-2">Gratuito</h3>
+                    <div class="text-4xl font-bold mb-6">R$0<span class="text-lg text-gray-400 font-normal">/mês</span></div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> 5 scans/mês</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Até 50 endpoints</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Relatório JSON</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Suporte comunidade</li>
+                    </ul>
+                    <a href="#" class="block text-center border border-primary text-primary py-3 rounded-lg font-medium hover:bg-primary hover:text-white transition">
+                        Começar Grátis
+                    </a>
+                </div>
+                
+                <!-- Pro -->
+                <div class="bg-gradient-to-b from-primary/20 to-transparent border border-primary rounded-2xl p-8 relative">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary px-4 py-1 rounded-full text-sm font-medium">
+                        Mais Popular
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Pro</h3>
+                    <div class="text-4xl font-bold mb-6">R$197<span class="text-lg text-gray-400 font-normal">/mês</span></div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Scans ilimitados</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Endpoints ilimitados</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Todos os formatos</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Autenticação avançada</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> API Access</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Suporte por email</li>
+                    </ul>
+                    <a href="#" class="block text-center bg-primary py-3 rounded-lg font-medium hover:bg-primary/80 transition">
+                        Começar Trial
+                    </a>
+                </div>
+                
+                <!-- Enterprise -->
+                <div class="bg-white/5 border border-white/10 rounded-2xl p-8">
+                    <h3 class="text-xl font-bold mb-2">Enterprise</h3>
+                    <div class="text-4xl font-bold mb-6">Sob Consulta</div>
+                    <ul class="space-y-3 mb-8">
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Tudo do Pro</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Instalações on-premise</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Scanner dedicado</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> SLA garantido</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Suporte 24/7</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-400"></i> Treinamento</li>
+                    </ul>
+                    <a href="#contato" class="block text-center border border-white/20 py-3 rounded-lg font-medium hover:border-white transition">
+                        Falar com Consultor
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-24 bg-gradient-to-r from-primary/20 to-secondary/20">
+        <div class="max-w-4xl mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-6">Pronto para Proteger suas APIs?</h2>
+            <p class="text-xl text-gray-300 mb-8">Junte-se a centenas de desenvolvedores que já usam o API Security Scanner Pro</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="#" class="bg-white text-dark px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition">
+                    Começar Gratuitamente
+                </a>
+                <a href="#contato" class="border border-white/20 px-8 py-4 rounded-xl font-medium text-lg hover:border-white transition">
+                    Agendar Demo
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 border-t border-white/10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+                            <i class="fas fa-shield-halved text-white text-sm"></i>
+                        </div>
+                        <span class="font-bold">API Security Pro</span>
+                    </div>
+                    <p class="text-gray-400 text-sm">Scanner de vulnerabilidades enterprise para APIs REST e GraphQL.</p>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Produto</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Recursos</a></li>
+                        <li><a href="#" class="hover:text-white transition">Preços</a></li>
+                        <li><a href="#" class="hover:text-white transition">Documentação</a></li>
+                        <li><a href="#" class="hover:text-white transition">API</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Empresa</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Sobre</a></li>
+                        <li><a href="#" class="hover:text-white transition">Blog</a></li>
+                        <li><a href="#" class="hover:text-white transition">Carreiras</a></li>
+                        <li><a href="#" class="hover:text-white transition">Contato</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Legal</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Privacidade</a></li>
+                        <li><a href="#" class="hover:text-white transition">Termos</a></li>
+                        <li><a href="#" class="hover:text-white transition">LGPD</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-gray-500 text-sm">© 2024 API Security Scanner Pro. Todos os direitos reservados.</p>
+                <div class="flex gap-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-github text-xl"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-twitter text-xl"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-linkedin text-xl"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-discord text-xl"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- WhatsApp Float -->
+    <a href="https://wa.me/5511999999999" target="_blank" class="fixed bottom-6 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition z-50">
+        <i class="fab fa-whatsapp text-white text-2xl"></i>
+    </a>
+</body>
+</html>
