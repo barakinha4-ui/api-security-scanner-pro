@@ -5,6 +5,7 @@ import os
 import json
 import uuid
 import asyncio
+import secrets
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Set
@@ -21,8 +22,12 @@ load_dotenv()
 
 WS_HOST = os.getenv("WS_HOST", "0.0.0.0")
 WS_PORT = int(os.getenv("WS_PORT", 8765))
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "supabase-secret")
-API_KEY_SECRET = os.getenv("API_KEY_SECRET", "super-secret-local-key")
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+if not SUPABASE_JWT_SECRET:
+    SUPABASE_JWT_SECRET = secrets.token_hex(32)
+API_KEY_SECRET = os.getenv("API_KEY_SECRET")
+if not API_KEY_SECRET:
+    API_KEY_SECRET = secrets.token_hex(32)
 
 HEARTBEAT_INTERVAL = 30  # segundos
 INACTIVITY_TIMEOUT = 300  # 5 minutos
@@ -158,8 +163,8 @@ def validate_token(token: str) -> Optional[str]:
     Valida token JWT ou API Key.
     Retorna user_id se válido, None se inválido.
     """
-    # Check API Key first
-    if token == API_KEY_SECRET:
+    # Check API Key first (timing-safe comparison)
+    if secrets.compare_digest(str(token), str(API_KEY_SECRET)):
         return "api_key_user"
     
     try:
@@ -185,8 +190,8 @@ def debug_token(token: str) -> dict:
     """
     result = {"valid": False, "reason": None, "payload": None}
     
-    # Check API Key
-    if token == API_KEY_SECRET:
+    # Check API Key (timing-safe comparison)
+    if secrets.compare_digest(str(token), str(API_KEY_SECRET)):
         result["valid"] = True
         result["reason"] = "api_key_match"
         return result

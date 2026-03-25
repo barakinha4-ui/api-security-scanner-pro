@@ -12,6 +12,7 @@ python-dotenv==1.0.1
 
 # Security and Crypto
 cryptography==42.0.5
+PyJWT==2.8.0
 python-jose[cryptography]==3.3.0
 
 # Redis (async)
@@ -20,17 +21,25 @@ redis[asyncio]>=4.5.0
 # Advanced features
 watchdog==4.0.0
 weasyprint==61.2
+cachetools==5.3.3
+celery[redis]==5.3.6
+flower==2.0.1
 
 # Utilities
 rich==13.7.1
 aiohttp==3.9.3
+supabase>=2.3.0
+sqlalchemy==2.0.28
+asyncpg==0.29.0
 
 # Development, Testing and Linting
 pytest==8.0.2
 pytest-asyncio==0.23.5
+pytest-cov>=4.1.0
 fakeredis>=2.21.0
 locust>=2.15.0
 prometheus-client==0.20.0
 coverage==7.4.3
 ruff==0.3.2
 black==24.2.0
+stripe==8.5.0

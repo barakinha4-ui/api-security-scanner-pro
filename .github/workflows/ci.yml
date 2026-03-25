@@ -29,6 +29,49 @@ jobs:
       - name: Lint with Ruff
         run: ruff check src/
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit safety
+
+      - name: Run Bandit (SAST)
+        run: bandit -r src/ -f json -o bandit-report.json || true
+        continue-on-error: true
+
+      - name: Run Safety (Dependency Check)
+        run: safety check --json > safety-report.json || true
+        continue-on-error: true
+
+      - name: Check for secrets with trufflehog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          head: ${{ github.sha }}
+        continue-on-error: true
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+          retention-days: 30
+
   test:
     needs: lint
     runs-on: ubuntu-latest

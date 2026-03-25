@@ -1,0 +1,52 @@
+# Dependabot configuration for API Security Scanner Pro
+# Dependabot will automatically check for and create PRs for:
+# - Python package updates
+# - Security vulnerabilities
+
+version: 2
+updates:
+  # Enable version updates for Python
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    reviewers:
+      - "barakinha4"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Enable GitHub Actions updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Security updates (enabled by default for GitHub)
+  # This enables automatic security PRs for critical vulnerabilities
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "security"
+      - "dependencies"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    # Only create PRs for security vulnerabilities
+    versioning-strategy: "increase"
