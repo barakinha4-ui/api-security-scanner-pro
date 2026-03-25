@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\gusta\Desktop\api\api-security-scanner-pro\src\apiscanner\cli.py", line 20, in <module>
-    from scanner import Scanner, PRESETS
-  File "C:\Users\gusta\Desktop\api\api-security-scanner-pro\src\apiscanner\scanner.py", line 15, in <module>
-    from scanner_config import ScannerConfig
-  File "C:\Users\gusta\Desktop\api\api-security-scanner-pro\src\apiscanner\scanner_config.py", line 7, in <module>
-    from pydantic_settings import BaseSettings, Field
-ImportError: cannot import name 'Field' from 'pydantic_settings' (C:\Users\gusta\AppData\Local\Programs\Python\Python313\Lib\site-packages\pydantic_settings\__init__.py)
