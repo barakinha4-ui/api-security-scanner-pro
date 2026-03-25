@@ -276,6 +276,7 @@ class ScanResult:
 
     total_requests:       int   = 0
     errors:               int   = 0
+    extra_data:           Dict[str, Any] = field(default_factory=dict)
 
     # Scanner metadata
     scanner_version:      str   = "2.0"

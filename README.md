@@ -176,6 +176,30 @@ locust -f locustfile.py --host http://localhost:8000
 
 ---
 
+## 🌪️ Celery Worker & SaaS
+
+Para ambientes de produção ou scans de longa duração, utilize a arquitetura de filas Celery:
+
+1. **Subir o Worker e Monitoring:**
+```bash
+docker compose up -d celery-worker flower
+```
+
+2. **Monitoramento Visual (Flower):**
+Acesse `http://localhost:5555` para ver as tasks em tempo real.
+
+3. **Verificação de Saúde:**
+```bash
+python test_celery_connection.py
+```
+
+4. **Teste de Fluxo Completo:**
+```bash
+python test_scan_flow.py
+```
+
+---
+
 ## 📄 License
 
 Este software foi desenhado para propósitos educacionais e testes de segurança em ambientes **autorizados**.

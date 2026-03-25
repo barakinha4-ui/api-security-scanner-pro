@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+__pycache__
+*.pyc
+.env
+.env.example
+.opencode
+.pytest_cache
+src/apiscanner/nul
+nul
+tests/nul

@@ -2,7 +2,7 @@
 tests/test_confidence_scoring.py — Unit tests for the finding confidence engine.
 """
 import pytest
-from core.models import Finding
+from .core.models import Finding
 
 def test_confidence_calculation_signals():
     """Test that multiple signals correctly increment the confidence score."""

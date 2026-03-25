@@ -9,8 +9,8 @@ import asyncio
 import uuid
 from typing import List, Optional, Dict, Any, cast
 
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult, CVSS_PROFILES
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult, CVSS_PROFILES
 
 class BOLAPlugin(BasePlugin):
     NAME = "bola"

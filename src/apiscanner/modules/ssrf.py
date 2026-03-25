@@ -10,8 +10,8 @@ import uuid
 from typing import List, Tuple, Optional
 from urllib.parse import quote
 
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult, CVSS_PROFILES
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult, CVSS_PROFILES
 from payloads.database import SSRF
 
 

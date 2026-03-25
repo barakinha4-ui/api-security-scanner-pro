@@ -15,13 +15,13 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-from core.engine import AsyncEngine
-from core.models import Severity
+from .core.engine import AsyncEngine
+from .core.models import Severity
 from scanner import Scanner, PRESETS
 from reports.reporter import JSONReporter, MarkdownReporter, HTMLReporter, PDFReporter
 from scanner_config import ScannerConfig
-from core.ui import C, c
-from core.logger import setup_logger, logger
+from .core.ui import C, c
+from .core.logger import setup_logger, logger
 
 BANNER = f"""{C.CYAN}
   ╔══════════════════════════════════════════════════════════════╗
@@ -350,7 +350,7 @@ def main():
     args   = parser.parse_args()
 
     if args.list_plugins:
-        from core.plugins import Registry
+        from .core.plugins import Registry
         Registry.discover()
         for p in Registry.list_info():
             print(f"  {c(p['name'], C.CYAN):20} {p['description']}")

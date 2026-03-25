@@ -30,8 +30,8 @@ jobs:
 
     - name: Run Security Scan
       env:
-        VICTIM_AUTH: ${{ secrets.VICTIM_AUTH }}
-        ATTACKER_AUTH: ${{ secrets.ATTACKER_AUTH }}
+        VICTIM_AUTH: "${{ secrets.VICTIM_AUTH }}"
+        ATTACKER_AUTH: "${{ secrets.ATTACKER_AUTH }}"
       run: |
         # Use provided input or a default target
         TARGET="${{ github.event.inputs.target || 'https://api.example.com' }}"
@@ -49,8 +49,8 @@ jobs:
     - name: Deploy Dashboard to Cloudflare Pages
       uses: cloudflare/pages-action@v1
       with:
-        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        apiToken: "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+        accountId: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
         projectName: 'api-security-scanner-pro'
         directory: 'dashboard'
-        gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        gitHubToken: "${{ secrets.GITHUB_TOKEN }}"

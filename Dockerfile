@@ -27,8 +27,9 @@ COPY --from=builder /root/.local /root/.local
 # Copy application files
 COPY . .
 
-# Add python packages to PATH
+# Adiciona python packages e src ao PATH
 ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/app:/app/src
 
 # Use CMD instead of ENTRYPOINT to allow docker-compose to override easily
 CMD ["python", "src/apiscanner/cli.py", "--help"]

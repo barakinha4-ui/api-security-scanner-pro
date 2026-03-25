@@ -9,8 +9,8 @@ import re
 import time
 from typing import List
 
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult, CVSS_PROFILES
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult, CVSS_PROFILES
 from payloads.database import SECURITY_HEADERS, SENSITIVE_PATTERNS
 
 

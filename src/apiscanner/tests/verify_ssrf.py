@@ -6,7 +6,7 @@ import os
 # Add src to path
 sys.path.append(os.path.join(os.getcwd(), "src", "apiscanner"))
 
-from core.engine import AsyncEngine
+from .core.engine import AsyncEngine
 
 async def verify_ssrf():
     print("[*] Testing SSRF Protection...")

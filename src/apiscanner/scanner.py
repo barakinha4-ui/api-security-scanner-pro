@@ -9,16 +9,15 @@ import asyncio
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Any, cast
 
-from core.engine import AsyncEngine
-from core.models import ScanResult
-from core.plugins import Registry, BasePlugin
-from core.oast import OASTIntegration
-from scanner_config import ScannerConfig
-from core.logger import logger
-from core.ui import C, c
-from core.metrics import SCAN_PHASE_DURATION, ACTIVE_SCANS_PER_TARGET
-from core.reports import ReportGenerator
-from core.metrics import SCAN_PHASE_DURATION, ACTIVE_SCANS_PER_TARGET
+from .core.engine import AsyncEngine
+from .core.models import ScanResult
+from .core.plugins import Registry, BasePlugin
+from .core.oast import OASTIntegration
+from .scanner_config import ScannerConfig
+from .core.logger import logger
+from .core.ui import C, c
+from .core.metrics import SCAN_PHASE_DURATION, ACTIVE_SCANS_PER_TARGET
+from .core.reports import ReportGenerator
 
 # Preset scan profiles
 PRESETS: Dict[str, List[str]] = {
@@ -114,6 +113,11 @@ class Scanner:
             tech = await self.engine.fingerprint(self.target)
             result.waf_detected = self.engine.waf_name
             result.technologies = tech
+            
+            # New technical info
+            result.extra_data["ssl_info"] = await self.engine.get_ssl_info(self.target)
+            result.extra_data["server_time"] = datetime.now().isoformat()
+            result.extra_data["waf_confidence"] = self.engine.waf_confidence
 
         # Phase 2: Discovery
         await self._log(f"  {C.CYAN}[2/3]{C.RESET} Discovery …")

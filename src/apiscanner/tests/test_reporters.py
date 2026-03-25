@@ -1,6 +1,6 @@
 import json
 from reports.reporter import JSONReporter
-from core.models import ScanResult, Finding
+from .core.models import ScanResult, Finding
 
 def test_json_reporter_generation(tmp_path):
     # Dummy mock data for injection testing

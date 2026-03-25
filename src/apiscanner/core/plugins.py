@@ -15,9 +15,9 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Type, Any, cast
 from pathlib import Path
 
-from core.engine import AsyncEngine
-from core.models import Finding, ScanResult
-from core.oast import OASTIntegration
+from .engine import AsyncEngine
+from .models import Finding, ScanResult
+from .oast import OASTIntegration
 
 
 class BasePlugin(ABC):

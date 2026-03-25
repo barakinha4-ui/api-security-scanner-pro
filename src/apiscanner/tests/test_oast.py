@@ -1,5 +1,5 @@
 import pytest
-from core.oast import OASTIntegration
+from .core.oast import OASTIntegration
 
 @pytest.mark.asyncio
 async def test_oast_setup_session():
@@ -21,7 +21,7 @@ def test_oast_generate_payloads():
 
 @pytest.mark.asyncio
 async def test_oast_check_confirmation(monkeypatch):
-    from core.oast import Interaction
+    from .core.oast import Interaction
     
     # Mocking poll to return a fake interaction
     async def mock_poll():

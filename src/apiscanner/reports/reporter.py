@@ -10,12 +10,12 @@ from datetime import datetime
 from html import escape
 from typing import List
 
-from core.models import ScanResult, Finding, Severity
+from ..core.models import ScanResult, Finding, Severity
 
 
 # ─── JSON ─────────────────────────────────────────────────────────────────────
 
-from core.crypto import shield
+from ..core.crypto import shield
 
 class JSONReporter:
     def generate(self, result: ScanResult, path: str, encrypt: bool = False) -> str:

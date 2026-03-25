@@ -11,8 +11,8 @@ import re
 from typing import List, Set
 from urllib.parse import urljoin, urlparse
 
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult
 from payloads.database import DISCOVERY_PATHS
 
 
@@ -115,7 +115,7 @@ class DiscoveryPlugin(BasePlugin):
             # Try JSON parsing
             try:
                 spec = resp.json()
-                if spec:
+                if isinstance(spec, dict) and "error" not in spec:
                     for ep_path in spec.get("paths", {}).keys():
                         endpoints.add(base + ep_path)
                     if endpoints:

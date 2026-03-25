@@ -1,6 +1,6 @@
 import pytest
 import respx
-from core.engine import AsyncEngine
+from .core.engine import AsyncEngine
 
 @pytest.mark.asyncio
 @respx.mock

@@ -22,12 +22,13 @@ from redis_config import get_redis, JOB_TTL
 
 logger = logging.getLogger("job_repository")
 
-# ── Prefixos de chave ─────────────────────────────────────────
-def _job_key(job_id: str) -> str:
-    return f"job:{job_id}"
+# ── Prefixos de chave (Multi-tenant) ────────────────
+def _job_key(job_id: str, organization_id: str) -> str:
+    return f"job:{organization_id}:{job_id}"
 
-def _user_index_key(user_id: str) -> str:
-    return f"jobs:user:{user_id}"
+def _org_index_key(organization_id: str) -> str:
+    """Índice de jobs por ORG (era por user_id)."""
+    return f"jobs:org:{organization_id}"
 
 STATS_KEY = "stats:jobs"
 
@@ -100,6 +101,9 @@ class JobRepository:
 
     def __init__(self, redis_client: Redis | None = None):
         self._r: Redis = redis_client or get_redis()
+        # Log de debug para confirmar DB
+        from redis_config import REDIS_DB
+        logger.debug(f"JobRepository initialized with Redis DB {REDIS_DB}")
 
     # ── Internal: serializa/deserializa campos JSON ───────────
     def _serialize(self, data: Dict[str, Any]) -> Dict[str, str]:
@@ -131,33 +135,31 @@ class JobRepository:
     # ── Operações CRUD ────────────────────────────────────────
 
     @with_retry()
-    async def create(self, job_id: str, job_data: Dict[str, Any]) -> bool:
+    async def create(self, job_id: str, job_data: Dict[str, Any], organization_id: str) -> bool:
         """
-        Cria job no Redis (Hash) e adiciona ao índice do usuário (Sorted Set).
-        TTL é aplicado SOMENTE após o job finalizar (via update).
+        Cria job no Redis (Hash) dentro do namespace da Org.
         """
         if _circuit.is_open():
             raise RedisError("Circuit breaker aberto — Redis indisponível")
 
         try:
-            key = _job_key(job_id)
+            key = _job_key(job_id, organization_id)
+            # Garante que o organization_id está nos dados
+            job_data["organization_id"] = organization_id
             serialized = self._serialize(job_data)
 
             async with self._r.pipeline(transaction=True) as pipe:
-                # Cria o hash do job
                 await pipe.hset(key, mapping=serialized)
 
-                # Adiciona ao índice do usuário com score = timestamp UNIX
+                # Índice por Organização
                 ts = datetime.now(timezone.utc).timestamp()
-                user_id = job_data.get("user_id", "unknown")
-                await pipe.zadd(_user_index_key(user_id), {job_id: ts})
+                await pipe.zadd(_org_index_key(organization_id), {job_id: ts})
 
-                # Incrementa contador de stats
                 await pipe.hincrby(STATS_KEY, "queued", 1)
                 await pipe.execute()
 
             _circuit.record_success()
-            logger.info("Job criado no Redis", extra={"job_id": job_id})
+            logger.info("Job criado no Redis (Multi-tenant)", extra={"job_id": job_id, "org": organization_id})
             return True
 
         except RedisError as exc:
@@ -165,15 +167,13 @@ class JobRepository:
             raise
 
     @with_retry()
-    async def get(self, job_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Busca job pelo ID. Retorna None se não encontrado.
-        """
+    async def get(self, job_id: str, organization_id: str) -> Optional[Dict[str, Any]]:
+        """Busca job no namespace da organização."""
         if _circuit.is_open():
             raise RedisError("Circuit breaker aberto")
 
         try:
-            raw = await self._r.hgetall(_job_key(job_id))
+            raw = await self._r.hgetall(_job_key(job_id, organization_id))
             if not raw:
                 return None
             _circuit.record_success()
@@ -183,15 +183,15 @@ class JobRepository:
             raise
 
     @with_retry()
-    async def update(self, job_id: str, updates: Dict[str, Any]) -> bool:
+    async def update(self, job_id: str, updates: Dict[str, Any], organization_id: str) -> bool:
         """
-        Atualiza campos do job. Se status = completed/failed, aplica TTL.
+        Atualiza campos do job garantindo o namespace da org.
         """
         if _circuit.is_open():
             raise RedisError("Circuit breaker aberto")
 
         try:
-            key = _job_key(job_id)
+            key = _job_key(job_id, organization_id)
             serialized = self._serialize(updates)
 
             async with self._r.pipeline(transaction=True) as pipe:
@@ -215,15 +215,12 @@ class JobRepository:
             raise
 
     @with_retry()
-    async def append_finding(self, job_id: str, finding: Dict[str, Any]) -> bool:
-        """
-        Adiciona um finding ao array de findings do job de forma atômica.
-        Usa WATCH + MULTI/EXEC para evitar race conditions.
-        """
+    async def append_finding(self, job_id: str, finding: Dict[str, Any], organization_id: str) -> bool:
+        """Adiciona finding no namespace da org."""
         if _circuit.is_open():
             raise RedisError("Circuit breaker aberto")
 
-        key = _job_key(job_id)
+        key = _job_key(job_id, organization_id)
         try:
             async with self._r.pipeline(transaction=True) as pipe:
                 while True:
@@ -247,15 +244,15 @@ class JobRepository:
             raise
 
     @with_retry()
-    async def delete(self, job_id: str, user_id: str) -> bool:
-        """Remove job do Redis e do índice de usuário."""
+    async def delete(self, job_id: str, organization_id: str) -> bool:
+        """Remove job e remove do índice da org."""
         if _circuit.is_open():
             raise RedisError("Circuit breaker aberto")
 
         try:
             async with self._r.pipeline(transaction=True) as pipe:
-                await pipe.delete(_job_key(job_id))
-                await pipe.zrem(_user_index_key(user_id), job_id)
+                await pipe.delete(_job_key(job_id, organization_id))
+                await pipe.zrem(_org_index_key(organization_id), job_id)
                 await pipe.execute()
 
             _circuit.record_success()
@@ -265,24 +262,19 @@ class JobRepository:
             raise
 
     @with_retry()
-    async def list_by_user(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        Retorna os últimos `limit` jobs do usuário, ordenados do mais recente.
-        Usa pipeline para buscar todos os hashes em uma rodada só.
-        """
+    async def list_by_org(self, organization_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Retorna jobs da org."""
         if _circuit.is_open():
             raise RedisError("Circuit breaker aberto")
 
         try:
-            # Sorted Set em ordem decrescente (mais recentes primeiro)
-            job_ids = await self._r.zrevrange(_user_index_key(user_id), 0, limit - 1)
+            job_ids = await self._r.zrevrange(_org_index_key(organization_id), 0, limit - 1)
             if not job_ids:
-                _circuit.record_success()
                 return []
 
             async with self._r.pipeline(transaction=False) as pipe:
                 for jid in job_ids:
-                    await pipe.hgetall(_job_key(jid))
+                    await pipe.hgetall(_job_key(jid, organization_id))
                 results = await pipe.execute()
 
             jobs = []
@@ -321,11 +313,12 @@ class JobRepository:
             # Varre todos os índices de usuário
             cursor = 0
             while True:
-                cursor, keys = await self._r.scan(cursor, match="jobs:user:*", count=100)
+                cursor, keys = await self._r.scan(cursor, match="jobs:org:*", count=100)
                 for idx_key in keys:
+                    org_id = idx_key.split(":")[-1]
                     job_ids = await self._r.zrange(idx_key, 0, -1)
                     for jid in job_ids:
-                        exists = await self._r.exists(_job_key(jid))
+                        exists = await self._r.exists(_job_key(jid, org_id))
                         if not exists:
                             await self._r.zrem(idx_key, jid)
                             removed += 1

@@ -14,8 +14,8 @@ import re
 import time
 from typing import Any, Dict, List, Optional, Tuple, cast
 
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult, CVSS_PROFILES
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult, CVSS_PROFILES
 from payloads.database import AUTH, JWT_ATTACKS
 
 

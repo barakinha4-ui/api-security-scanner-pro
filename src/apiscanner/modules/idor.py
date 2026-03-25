@@ -7,8 +7,8 @@ from __future__ import annotations
 import re
 import asyncio
 from typing import List, Optional
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult, CVSS_PROFILES
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult, CVSS_PROFILES
 
 
 class IDORPlugin(BasePlugin):

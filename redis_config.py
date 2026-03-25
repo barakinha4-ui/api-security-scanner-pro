@@ -1,12 +1,14 @@
 """
 redis_config.py — Configuração e pool de conexão com Redis
 Usa redis.asyncio para operações assíncronas (redis-py >= 4.5.0)
+Suporta REDIS_URL (Railway, Upstash) ou parâmetros individuais.
 """
 import os
 import redis.asyncio as aioredis
 from redis.asyncio.connection import ConnectionPool
 
 # ── Parâmetros de conexão (lidos do ambiente) ──────────────────
+REDIS_URL      = os.getenv("REDIS_URL", None)
 REDIS_HOST     = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT     = int(os.getenv("REDIS_PORT", 6379))
 REDIS_DB       = int(os.getenv("REDIS_DB", 0))
@@ -18,20 +20,45 @@ JOB_TTL = int(os.getenv("JOB_TTL", 3600))   # 1 hora
 # ── Pool de conexão compartilhado ──────────────────────────────
 #    max_connections=50 para suportar múltiplos workers (gunicorn)
 _pool: ConnectionPool | None = None
-
+_loop_id: int | None = None
 
 def get_pool() -> ConnectionPool:
     """Retorna (ou cria) o pool singleton de conexões Redis."""
-    global _pool
-    if _pool is None:
-        _pool = aioredis.ConnectionPool(
-            host=REDIS_HOST,
-            port=REDIS_PORT,
-            db=REDIS_DB,
-            password=REDIS_PASSWORD,
-            max_connections=50,
-            decode_responses=True,   # retorna strings Python (não bytes)
-        )
+    global _pool, _loop_id
+    
+    try:
+        import asyncio
+        current_loop = asyncio.get_running_loop()
+        current_loop_id = id(current_loop)
+    except RuntimeError:
+        current_loop_id = 0
+
+    # Se o loop mudou (comum em workers Celery manual loop), reseta o pool
+    if _pool is None or _loop_id != current_loop_id:
+        if _pool is not None:
+            try:
+                pass 
+            except Exception:
+                pass
+                
+        # Support REDIS_URL for Railway/Upstash/Cloud Redis
+        if REDIS_URL:
+            _pool = ConnectionPool.from_url(
+                REDIS_URL,
+                max_connections=50,
+                decode_responses=True,
+            )
+        else:
+            _pool = aioredis.ConnectionPool(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                db=REDIS_DB,
+                password=REDIS_PASSWORD,
+                max_connections=50,
+                decode_responses=True,
+            )
+        _loop_id = current_loop_id
+        
     return _pool
 
 

@@ -18,8 +18,8 @@ from pydantic import BaseModel
 import secrets
 import json
 
-from core.engine import AsyncEngine
-from core.models import ScanResult
+from .core.engine import AsyncEngine
+from .core.models import ScanResult
 from scanner import Scanner
 
 # Configuration
@@ -101,7 +101,7 @@ class ScanRequest(BaseModel):
     threads: int = 20
     encrypt_result: bool = False
 
-from core.crypto import shield
+from .core.crypto import shield
 
 async def run_scan_task(scan_id: str, req: ScanRequest):
     print(f"[*] Starting scan {scan_id} -> {req.target}")

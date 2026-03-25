@@ -7,20 +7,60 @@ import asyncio
 import ipaddress
 import time
 from urllib.parse import urlparse
-from typing import List, Callable, Optional, Awaitable
+from typing import List, Dict, Callable, Optional, Awaitable
+from datetime import datetime
 
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, ValidationError, Field, UUID4
-from jose import jwt, JWTError
+from jose import jwt, jwk, JWTError
+from jose.utils import base64url_decode
+import httpx
+from cachetools import TTLCache
 import redis.asyncio as redis
 
 # Setup Redis Config
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "supabase-secret")
+
+# Cache for JWKS
+jwks_cache = TTLCache(maxsize=1, ttl=3600)
+
+async def get_jwks():
+    if "jwks" in jwks_cache:
+        return jwks_cache["jwks"]
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json")
+            resp.raise_for_status()
+            jwks = resp.json()
+            jwks_cache["jwks"] = jwks
+            return jwks
+    except Exception:
+        return None
+
+async def verify_supabase_jwt(token: str) -> Optional[dict]:
+    try:
+        header = jwt.get_unverified_header(token)
+        kid = header.get("kid")
+        if not kid: return None
+
+        result: Optional[dict] = await get_jwks()
+        if not result or not isinstance(result, dict):
+            return None
+        
+        keys: list = result.get("keys", [])
+        key_data = next((k for k in keys if k.get("kid") == kid), None)
+        if not key_data: return None
+
+        public_key = jwk.construct(key_data)
+        return jwt.decode(token, public_key.to_pem().decode('utf-8'), algorithms=["ES256"], audience="authenticated")
+    except Exception:
+        return None
 
 # In-memory logging for stdout (Audit logs)
 logger = logging.getLogger("audit_logger")
@@ -73,6 +113,11 @@ def resolve_and_check_ssrf(url: str) -> bool:
         hostname = parsed.hostname
         if not hostname:
             return False
+
+        # Permite apenas em ambiente de desenvolvimento (verifica env var)
+        allow_private = os.getenv("ALLOW_PRIVATE_TARGETS", "false").lower() == "true"
+        if hostname in ["vulnerable-api-lab", "app"] and allow_private:
+            return False
             
         ip_addr = socket.gethostbyname(hostname)
         return is_internal_ip(ip_addr)
@@ -84,7 +129,7 @@ def resolve_and_check_ssrf(url: str) -> bool:
 async def log_audit(user_id: str, ip: str, endpoint: str, status: int, correlation_id: uuid.UUID):
     """Writes an audit log entry in JSON format to stdout."""
     log_entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z" if 'datetime' in globals() else time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "user_id": user_id,
         "ip": ip,
         "endpoint": endpoint,
@@ -92,9 +137,6 @@ async def log_audit(user_id: str, ip: str, endpoint: str, status: int, correlati
         "correlation_id": str(correlation_id)
     }
     logger.info(json.dumps(log_entry))
-
-# Import needed inside the function scope manually above if not top-level
-from datetime import datetime
 
 # ================= 4. FastAPI Middleware Core =================
 class SecurityShieldMiddleware(BaseHTTPMiddleware):
@@ -110,21 +152,26 @@ class SecurityShieldMiddleware(BaseHTTPMiddleware):
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
             try:
-                # We decode without verification locally first to extract fields, 
-                # or verify it if we trust the secret
-                decoded = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], options={"verify_exp": False, "verify_aud": False})
-                payload = JWTPayload(**decoded)
+                # 1. Tenta ES256 (JWKS)
+                decoded = await verify_supabase_jwt(token)
                 
-                if not payload.is_valid():
-                    return JSONResponse(status_code=401, content={"error": "JWT is expired"})
-                    
-                user_id = str(payload.sub)
-            except (JWTError, ValidationError) as e:
-                # Ignore extraction errors here; endpoint dependencies will handle strict auth
+                # 2. Fallback HS256
+                if not decoded:
+                    try:
+                        decoded = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+                    except Exception:
+                        pass
+                
+                if decoded:
+                    payload = JWTPayload(**decoded)
+                    if not payload.is_valid():
+                        return JSONResponse(status_code=401, content={"error": "JWT is expired"})
+                    user_id = str(payload.sub)
+            except (JWTError, ValidationError):
                 pass
                 
         # ────────── Sliding Window Rate Limit (Redis) ──────────
-        limit_key = f"rl:{user_id}"
+        limit_key = f"rl:{user_id}" if user_id != "anonymous" else f"rl:anon:{client_ip}"
         window_sec = 60
         max_limit = 100
         now = time.time()
@@ -152,28 +199,20 @@ class SecurityShieldMiddleware(BaseHTTPMiddleware):
                     headers={"Retry-After": str(retry_after)}
                 )
         except Exception as e:
-            # Bypass rate limit if Redis is down, but log failure
-            pass
-
-        # ────────── SSRF Pre-scan Validation ──────────
-        if request.method == "POST" and request.url.path == "/api/scan":
-            try:
-                body = await request.body()
-                
-                # Restore body for FastAPI router
-                async def receive(): return {"type": "http.request", "body": body}
-                request._receive = receive
-                
-                if body:
-                    data = json.loads(body)
-                    target = data.get("target")
-                    if target and resolve_and_check_ssrf(target):
-                        # Block request immediately
-                        asyncio.create_task(log_audit(user_id, client_ip, f"{request.method} {request.url.path}", 403, correlation_id))
-                        return JSONResponse(status_code=403, content={"error": "SSRF protected target"})
-            except BaseException:
-                pass
-
+            # Fallback: in-memory rate limit if Redis is down
+            if not hasattr(self, '_mem_rate'):
+                self._mem_rate: Dict[str, List[float]] = {}
+            user_reqs = self._mem_rate.setdefault(client_ip, [])
+            # Clean old entries
+            user_reqs = [t for t in user_reqs if t > now - window_sec]
+            self._mem_rate[client_ip] = user_reqs
+            if len(user_reqs) >= 50:  # Lower limit when Redis is down
+                return JSONResponse(
+                    status_code=429,
+                    content={"error": "rate_limit_exceeded", "retry_after": window_sec},
+                    headers={"Retry-After": str(window_sec)}
+                )
+            user_reqs.append(now)
 
         # ────────── Proceed Request ──────────
         try:

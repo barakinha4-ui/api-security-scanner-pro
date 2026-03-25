@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VULNEXUS AI // AUTONOMOUS PENTEST</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #030305; --bg2: #0a0a0f; --cyan: #00f2ff; --magenta: #ff00ff; --red: #ff3366; --green: #00ffaa; --text: #e0e0e0; --dim: #606060; --border: rgba(255,255,255,0.08); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
+        .app { display: grid; grid-template-rows: 60px 1fr; height: 100vh; }
+        header { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+        .brand { font-weight: 800; letter-spacing: 2px; color: var(--cyan); }
+        .brand em { color: var(--magenta); font-style: normal; }
+        .main { display: grid; grid-template-columns: 350px 1fr; gap: 20px; padding: 20px; height: calc(100vh - 60px); }
+        aside { overflow-y: auto; padding-right: 10px; display: flex; flex-direction: column; gap: 20px; }
+        .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+        .btn { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--cyan); background: rgba(0,242,255,0.1); color: var(--cyan); font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .btn:hover { background: var(--cyan); color: #000; }
+        .field { margin-bottom: 15px; }
+        label { font-size: 0.7rem; color: var(--dim); display: block; margin-bottom: 5px; }
+        input { width: 100%; background: #000; border: 1px solid var(--border); padding: 10px; color: #fff; border-radius: 4px; }
+        .terminal { flex: 1; background: #000; border: 1px solid var(--border); border-radius: 8px; font-family: 'JetBrains Mono', monospace; padding: 15px; overflow-y: auto; font-size: 0.85rem; height: 100%; }
+        .log-s { color: var(--green); } .log-e { color: var(--red); } .log-c { color: var(--cyan); }
+        .auth-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .auth-card { width: 380px; background: var(--bg2); border: 1px solid var(--border); padding: 40px; border-radius: 12px; }
+        .exploit-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 10px; }
+        .exploit-table th { text-align: left; color: var(--dim); padding: 10px; border-bottom: 1px solid var(--border); }
+        .exploit-table td { padding: 10px; border-bottom: 1px solid var(--border); }
+        .status-confirmed { color: var(--red); font-weight: 800; }
+        .status-likely { color: var(--magenta); }
+        .status-false { color: var(--dim); }
+    </style>
+</head>
+<body>
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <h2 style="text-align:center; margin-bottom:30px;">VULNEXUS AI // AUTH</h2>
+            <div id="auth-error" style="color:var(--red); font-size:0.8rem; margin-bottom:10px; min-height:1.2em;"></div>
+            <div class="field"><label>EMAIL</label><input type="email" id="auth-email"></div>
+            <div class="field"><label>PASSWORD</label><input type="password" id="auth-pass"></div>
+            <button class="btn" onclick="AuthUI.submit()" id="auth-btn">AUTHORIZE ENGINE</button>
+            <p style="font-size:0.7rem; color:var(--dim); text-align:center; margin-top:15px; cursor:pointer;" onclick="AuthUI.toggle()">NEW PENTESTER? REGISTER HERE</p>
+        </div>
+    </div>
+
+    <div class="app">
+        <header>
+            <div class="brand">VULNEXUS <em>AI</em></div>
+            <div style="font-size:0.8rem; display:flex; gap:20px; align-items:center;">
+                <span id="org-name" style="color:var(--magenta)">LOADING ORG...</span>
+                <span id="user-email" style="color:var(--dim)">--</span>
+                <button onclick="AuthUI.logout()" style="background:none; border:none; color:var(--red); font-size:0.7rem; cursor:pointer;">[EXIT]</button>
+            </div>
+        </header>
+        <div class="main">
+            <div style="display:flex; flex-direction:column; overflow-y:auto;">
+                <aside>
+                    <div class="card">
+                        <h3>🤖 AI SCAN ENGINE</h3>
+                        <div class="field" style="margin-top:15px;"><label>TARGET URL</label><input type="text" id="target-url" value="http://vulnerable-api-lab:9000"></div>
+                        <button class="btn" onclick="App.startScan()">INITIATE AI AUDIT</button>
+                    </div>
+                    <div class="card" id="ai-exploit-validation">
+                        <h3>⚔️ AI EXPLOIT VALIDATION</h3>
+                        <div id="exploit-list" style="margin-top:10px;">
+                            <p style="font-size:0.7rem; color:var(--dim)">Awaiting scan findings for auto-exploitation...</p>
+                        </div>
+                    </div>
+                    <div class="card" id="quota-info">
+                        <h3>📊 QUOTA</h3>
+                        <div style="font-size:0.8rem; margin:10px 0; display:flex; justify-content:space-between;"><span id="plan-name">PLAN: FREE</span> <span id="usage-pct">0/5</span></div>
+                        <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="usage-bar" style="height:100%; background:var(--cyan); width:0%;"></div></div>
+                        <button class="btn" onclick="App.upgrade()" style="margin-top:15px; font-size:0.65rem;">⚡ UPGRADE TO PRO</button>
+                    </div>
+                </aside>
+            </div>
+            <div class="terminal" id="logs">
+                <div style="color:var(--dim)">> VULNEXUS AI SYSTEM ONLINE // AWAITING TARGET...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AuthUI = {
+            mode: 'login', token: localStorage.getItem('v_token'),
+            init() { if(this.token) { document.getElementById('auth-overlay').style.display='none'; App.bootstrap(); } },
+            toggle() { this.mode = this.mode === 'login' ? 'register' : 'login'; document.querySelector('#auth-btn').innerText = this.mode === 'login' ? 'AUTHORIZE ENGINE' : 'REGISTER PENTESTER'; },
+            async submit() {
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-pass').value;
+                try {
+                    const res = await fetch(`/api/v1/auth/${this.mode}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password}) });
+                    const data = await res.json();
+                    if(!res.ok) throw new Error(data.detail);
+                    if(this.mode==='login') { localStorage.setItem('v_token', data.access_token); location.reload(); }
+                    else { alert('Registered!'); this.toggle(); }
+                } catch(e) { document.getElementById('auth-error').innerText = e.message; }
+            },
+            logout() { localStorage.clear(); location.reload(); }
+        };
+
+        const App = {
+            activeScanId: null,
+            bootstrap() { this.loadOrg(); },
+            async loadOrg() {
+                try {
+                    const res = await fetch('/api/v1/billing/current', { headers:{'Authorization':`Bearer ${AuthUI.token}`} });
+                    if(!res.ok) return;
+                    const org = await res.json();
+                    document.getElementById('org-name').innerText = org.name.toUpperCase();
+                    document.getElementById('plan-name').innerText = `PLAN: ${org.plan.toUpperCase()}`;
+                    document.getElementById('usage-pct').innerText = `${org.usage.scans_count}/${org.usage.scans_limit}`;
+                    document.getElementById('usage-bar').style.width = org.usage.percent + '%';
+                } catch(e) { console.error(e); }
+            },
+            async startScan() {
+                const target = document.getElementById('target-url').value;
+                this.log(`Attempting AI Audit: ${target}`, 'c');
+                try {
+                    const res = await fetch('/api/v1/scans/start', { 
+                        method:'POST', 
+                        headers:{'Authorization':`Bearer ${AuthUI.token}`, 'Content-Type':'application/json'},
+                        body: JSON.stringify({ target_url: target })
+                    });
+                    const data = await res.json();
+                    if(!res.ok) throw new Error(data.detail);
+                    this.activeScanId = data.scan_id;
+                    this.log(`AI Engine Enqueued! ID: ${this.activeScanId}`, 's');
+                    this.startPolling();
+                } catch(e) { this.log(`Error: ${e.message}`, 'e'); }
+            },
+            startPolling() {
+                if(this.pollInterval) clearInterval(this.pollInterval);
+                this.pollInterval = setInterval(() => this.pollExploits(), 3000);
+            },
+            async pollExploits() {
+                if(!this.activeScanId) return;
+                try {
+                    const res = await fetch(`/api/v1/scans/${this.activeScanId}/exploits`, { headers:{'Authorization':`Bearer ${AuthUI.token}`} });
+                    if(!res.ok) return;
+                    const exploits = await res.json();
+                    this.renderExploits(exploits);
+                } catch(e) { console.error(e); }
+            },
+            renderExploits(exploits) {
+                const container = document.getElementById('exploit-list');
+                if(exploits.length === 0) return;
+                
+                let html = '<table class="exploit-table"><tr><th>PAYLOAD</th><th>STATUS</th></tr>';
+                exploits.forEach(ex => {
+                    const statusClass = ex.exploit_success ? 'status-confirmed' : 'status-false';
+                    const statusText = ex.exploit_success ? 'CONFIRMED' : 'FAILED';
+                    html += `<tr>
+                        <td title="${ex.payload}">${ex.payload.substring(0, 20)}...</td>
+                        <td class="${statusClass}">${statusText}</td>
+                    </tr>`;
+                    if(ex.exploit_success) {
+                        this.log(`AI CONFIRMED VULNERABILITY: ${ex.payload}`, 'e');
+                    }
+                });
+                html += '</table>';
+                container.innerHTML = html;
+            },
+            async upgrade() {
+                this.log('BILLING ▷ Initializing Stripe...', 'c');
+                try {
+                    const res = await fetch('/api/v1/billing/subscribe', { 
+                        method:'POST', 
+                        headers:{'Authorization':`Bearer ${AuthUI.token}`, 'Content-Type':'application/json'},
+                        body: JSON.stringify({ plan: 'pro' })
+                    });
+                    const data = await res.json();
+                    if(data.url) { this.log('Redirecting to Stripe...', 's'); window.location.href = data.url; }
+                    else throw new Error('Stripe session failed');
+                } catch(e) { this.log(`Billing Error: ${e.message}`, 'e'); }
+            },
+            log(msg, type='i') {
+                const div = document.createElement('div'); div.className = `log-${type}`;
+                div.innerHTML = `> ${new Date().toLocaleTimeString()} :: ${msg}`;
+                document.getElementById('logs').appendChild(div);
+                document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;
+            }
+        };
+
+        AuthUI.init();
+    </script>
+</body>
+</html>

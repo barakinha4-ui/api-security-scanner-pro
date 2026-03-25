@@ -901,13 +901,129 @@
             color: var(--yellow);
         }
 
-        .sys-info p span.err {
-            color: var(--red);
+        /* === AUTH OVERLAY ====================================================== */
+        .auth-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 50%),
+                linear-gradient(rgba(0, 255, 255, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.025) 1px, transparent 1px);
+            background-size: 100% 100%, 50px 50px, 50px 50px;
         }
+
+        .auth-card {
+            width: 360px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 255, 255, 0.1);
+        }
+
+        .auth-card .brand {
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-card .brand-icon {
+            width: 44px;
+            height: 44px;
+            font-size: 1.4rem;
+        }
+
+        .auth-card .brand-name {
+            font-size: 1.2rem;
+        }
+
+        .auth-error {
+            color: var(--red);
+            font-size: 0.7rem;
+            text-align: center;
+            margin-bottom: 15px;
+            min-height: 14px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .atab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            color: var(--dim);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .atab.active {
+            color: var(--cyan);
+            border-bottom: 2px solid var(--cyan);
+            background: linear-gradient(0deg, rgba(0, 255, 255, 0.05) 0%, transparent 100%);
+        }
+
+        /* SaaS: Quota Progress Bar */
+        .quota-container { margin-top: 15px; }
+        .quota-bar { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin: 8px 0; }
+        .quota-fill { height: 100%; background: var(--cyan); transition: width 0.5s ease; box-shadow: var(--gcyan); }
+        .quota-fill.warning { background: var(--yellow); box-shadow: 0 0 10px rgba(245,255,0,0.4); }
+        .quota-fill.danger { background: var(--red); box-shadow: var(--gred); }
+        .upgrade-btn { color: var(--green); font-size: 0.65rem; text-decoration: none; font-weight: 800; }
+        
+        /* Team Table */
+        .team-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); }
+        .member-info { display: flex; flex-direction: column; }
+        .member-role { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; }
+        .remove-member { color: var(--red); cursor: pointer; font-size: 0.7rem; border: none; background: transparent; }
     </style>
 </head>
 
 <body>
+    <!-- AUTHENTICATION OVERLAY -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-card">
+            <div class="brand">
+                <div class="brand-icon">🛡️</div>
+                <div>
+                    <div class="brand-name">SAAS SCANNER <em>PRO</em></div>
+                    <div class="brand-sub">AUTHORIZATION REQUIRED</div>
+                </div>
+            </div>
+            <div class="auth-tabs">
+                <button class="atab active" id="tab-login" onclick="AuthUI.switchTab('login')">LOGIN</button>
+                <button class="atab" id="tab-register" onclick="AuthUI.switchTab('register')">REGISTER</button>
+            </div>
+            <div id="auth-error" class="auth-error"></div>
+
+            <div class="field">
+                <label>Email Address</label>
+                <input type="email" id="auth-email" placeholder="operator@soc.local" autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Password</label>
+                <input type="password" id="auth-pass" placeholder="••••••••" autocomplete="off">
+            </div>
+            <button class="btn btn-primary" id="auth-btn" onclick="AuthUI.submit()"
+                style="margin-top: 15px; width: 100%">
+                <span id="auth-btn-txt">ACCESS SECURE SYSTEM</span>
+            </button>
+        </div>
+    </div>
+
     <div class="app">
 
         <!-- HEADER -->
@@ -1002,17 +1118,21 @@
                             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                         </svg>
                     </div>
-                    <div class="stat mag">
-                        <div class="stat-info">
-                            <span class="stat-label">Live Events</span>
-                            <span class="stat-val mag" id="s-live">0</span>
+                    </div>
+                </div>
+
+                <!-- NEW: Quota Info -->
+                <div class="card" id="quota-card">
+                    <div class="card-hdr"><span>📈</span> Usage Quota</div>
+                    <div class="quota-container">
+                        <div style="display:flex; justify-content: space-between; font-size: 0.7rem;">
+                            <span id="q-label">Plan: FREE</span>
+                            <span id="q-stats">0 / 5</span>
                         </div>
-                        <svg width="20" height="20" fill="none" stroke="var(--magenta)" stroke-width="2"
-                            viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="2" />
-                            <path
-                                d="M16.24 7.76a6 6 0 010 8.49m-8.49-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
-                        </svg>
+                        <div class="quota-bar"><div class="quota-fill" id="q-fill" style="width: 0%"></div></div>
+                        <div style="text-align: right;">
+                            <a href="#" class="upgrade-btn" onclick="App.upgrade()">⚡ UPGRADE TO PRO</a>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -1035,6 +1155,15 @@
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                         </svg>
                         Findings
+                    </button>
+                    <button class="tab" data-tab="team" onclick="App.switchTab('team')">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                           <circle cx="9" cy="7" r="4"></circle>
+                           <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Team
                     </button>
                 </div>
 
@@ -1105,6 +1234,20 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- PANE: TEAM -->
+                <div id="pane-team" class="pane">
+                    <div class="card" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                        <div class="card-hdr"><span>👥</span> Team Management</div>
+                        <div id="team-list" style="flex:1; overflow-y:auto; padding:10px; background:rgba(0,0,0,0.2); border-radius:4px; border:1px solid var(--border); margin-bottom:12px;">
+                            <!-- Members loaded here -->
+                        </div>
+                        <div style="display:flex; gap:10px; flex-shrink:0;">
+                            <input type="text" id="new-member-id" placeholder="User ID to grant access..." style="flex:1">
+                            <button class="btn btn-primary" style="width:120px;" onclick="App.addMember()">GRANT ACCESS</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- RIGHT PANEL: SUMMARY -->
@@ -1137,6 +1280,105 @@
     </div><!-- .app -->
 
     <script>
+        /* ========================================================
+           SAAS AUTHENTICATION (SUPABASE via FastAPI)
+        ======================================================== */
+        const AuthUI = {
+            mode: 'login', // login | register
+            token: localStorage.getItem('saas_token') || '',
+            user: JSON.parse(localStorage.getItem('saas_user') || 'null'),
+
+            init() {
+                if (this.token && this.user) {
+                    this.hide();
+                    this.applySession();
+                }
+            },
+            switchTab(m) {
+                this.mode = m;
+                document.getElementById('tab-login').classList.toggle('active', m === 'login');
+                document.getElementById('tab-register').classList.toggle('active', m === 'register');
+                document.getElementById('auth-btn-txt').innerText = m === 'login' ? 'ACCESS SECURE SYSTEM' : 'CREATE OPERATOR ACCOUNT';
+                document.getElementById('auth-error').innerText = '';
+            },
+            async submit() {
+                const btn = document.getElementById('auth-btn');
+                const err = document.getElementById('auth-error');
+                const email = document.getElementById('auth-email').value.trim();
+                const pass = document.getElementById('auth-pass').value.trim();
+
+                if (!email || !pass) {
+                    err.innerText = 'CREDENTIALS REQUIRED';
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                err.innerText = 'AUTHENTICATING...';
+                err.style.color = 'var(--cyan)';
+
+                try {
+                    const endpoint = this.mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password: pass })
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok) throw new Error(data.detail || 'Authorization Failed');
+
+                    if (this.mode === 'register') {
+                        err.style.color = 'var(--green)';
+                        err.innerText = 'ACCOUNT CREATED. PROCEED TO LOGIN.';
+                        setTimeout(() => this.switchTab('login'), 2000);
+                    } else {
+                        // Login Success
+                        this.token = data.access_token;
+                        this.user = data.user;
+                        localStorage.setItem('saas_token', this.token);
+                        localStorage.setItem('saas_user', JSON.stringify(this.user));
+                        this.hide();
+                        this.applySession();
+                        App.loadOrg(); // Load Org data on login
+                    }
+                } catch (e) {
+                    err.style.color = 'var(--red)';
+                    err.innerText = e.message.toUpperCase();
+                } finally {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                }
+            },
+            hide() {
+                document.getElementById('auth-overlay').style.display = 'none';
+            },
+            logout() {
+                localStorage.removeItem('saas_token');
+                localStorage.removeItem('saas_user');
+                location.reload();
+            },
+            applySession() {
+                // Auto-fill the WS JWT token in the attach monitor field
+                document.getElementById('token-input').value = this.token;
+                
+                // Header User Info
+                const header = document.querySelector('header');
+                let userDiv = document.getElementById('user-info-badge');
+                if(!userDiv) {
+                    userDiv = document.createElement('div');
+                    userDiv.id = 'user-info-badge';
+                    userDiv.style = "font-size: 0.65rem; color: var(--cyan); font-family: var(--font-code); font-weight: bold; border-left: 1px solid var(--border); padding-left: 15px; margin-left: 15px;";
+                    document.querySelector('.header-right').prepend(userDiv);
+                }
+                userDiv.innerHTML = `<span id="org-name-display" style="color:var(--magenta)">LOADING ORG...</span> | ${this.user.email} | <a href="#" onclick="AuthUI.logout()" style="color:var(--red); text-decoration:none;">[ LOGOUT ]</a>`;
+            }
+        };
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => AuthUI.init());
+
         /* ========================================================
            APP STATE
         ======================================================== */
@@ -1274,17 +1516,20 @@
                 if (this.socket && this.socket.readyState < 2) this.socket.close();
                 clearTimeout(this._timer);
                 const jobId = document.getElementById('job-id-input').value.trim();
-                const token = document.getElementById('token-input').value.trim() || 'Gustavo222@2';
+                const token = AuthUI.token;
                 if (!jobId) { Log.add('ERROR: Provide a Job ID to attach channel', 'e'); return; }
+                if (!token) { Log.add('ERROR: Authorization token missing. Please login.', 'e'); return; }
 
                 setBadge('connecting', 'CONNECTING...');
                 const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-                const url = `${proto}://${location.host}/ws/logs/${jobId}?token=${token}`;
+                const url = `${proto}://${location.host}/ws/logs/${jobId}`;
                 Log.add(`WS ▷ Establishing channel to ${location.host}...`, 'c');
                 this.socket = new WebSocket(url);
 
                 this.socket.onopen = () => {
                     this.attempts = 0;
+                    // Send auth handshake
+                    this.socket.send(JSON.stringify({ token }));
                     setBadge('connected', 'CONNECTED');
                     Log.add('SYSTEM_ONLINE ▷ Stream channel established ✓', 's');
                     document.getElementById('btn-disc').style.display = '';
@@ -1398,7 +1643,8 @@
             async startScan() {
                 const target = document.getElementById('target-input').value.trim();
                 if (!target) { Log.add('ERROR ▷ Target URL required', 'e'); return; }
-                const token = document.getElementById('token-input').value.trim() || 'Gustavo222@2';
+                const token = AuthUI.token;
+                if (!token) { Log.add('ERROR ▷ Authentication required', 'e'); return; }
                 const type = document.getElementById('scan-type').value;
 
                 // Loading state
@@ -1453,7 +1699,110 @@
                     b.classList.toggle('active', b.innerText === sev);
                 });
                 Table.render();
+            },
+
+            async loadOrg() {
+                try {
+                    const res = await fetch('/api/org/current', { headers: { 'Authorization': `Bearer ${AuthUI.token}` }});
+                    if (!res.ok) return;
+                    const org = await res.json();
+                    
+                    document.getElementById('org-name-display').innerText = org.name.toUpperCase();
+                    document.getElementById('q-label').innerText = `PLAN: ${org.plan.toUpperCase()}`;
+                    document.getElementById('q-stats').innerText = `${org.usage.scans_count} / ${org.usage.scans_limit}`;
+                    
+                    const fill = document.getElementById('q-fill');
+                    fill.style.width = org.usage.percent + '%';
+                    fill.className = 'quota-fill';
+                    if (org.usage.percent > 90) fill.classList.add('danger');
+                    else if (org.usage.percent > 70) fill.classList.add('warning');
+                    
+                    if (org.plan !== 'free') {
+                        document.querySelector('.upgrade-btn').style.display = 'none';
+                    }
+                } catch (e) { console.error("Org load error", e); }
+            },
+
+            async upgrade() {
+                try {
+                    Log.add("BILLING ▷ Initializing Stripe Checkout...", "c");
+                    const res = await fetch('/api/billing/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AuthUI.token}` },
+                        body: JSON.stringify({ plan: 'pro' })
+                    });
+                    const data = await res.json();
+                    if (data.url) {
+                        Log.add("BILLING ▷ Redirecting to secure payment gateway...", "s");
+                        window.location.href = data.url;
+                    } else {
+                        throw new Error(data.detail || "Checkout failed");
+                    }
+                } catch (e) { Log.add(`BILLING_ERROR ▷ ${e.message}`, "e"); }
+            },
+
+            async loadMembers() {
+                const list = document.getElementById('team-list');
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--dim)">FETCHING TEAM DATA...</div>';
+                try {
+                    const res = await fetch('/api/org/members', { headers: { 'Authorization': `Bearer ${AuthUI.token}` }});
+                    const members = await res.json();
+                    if (!members.length) {
+                        list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--dim)">NO ADDITIONAL MEMBERS</div>';
+                        return;
+                    }
+                    list.innerHTML = members.map(m => `
+                        <div class="team-row">
+                            <div class="member-info">
+                                <span style="font-size:0.8rem; font-weight:600;">${m.user_id}</span>
+                                <span class="member-role">${m.role}</span>
+                            </div>
+                            ${m.user_id !== AuthUI.user.id ? `<button class="remove-member" onclick="App.removeMember('${m.user_id}')">[ REMOVE ]</button>` : ''}
+                        </div>
+                    `).join('');
+                } catch (e) { list.innerHTML = `<div style="color:var(--red); padding:10px;">ERROR: ${e.message}</div>`; }
+            },
+
+            async addMember() {
+                const input = document.getElementById('new-member-id');
+                const userId = input.value.trim();
+                if (!userId) return;
+                try {
+                    const res = await fetch('/api/org/members', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AuthUI.token}` },
+                        body: JSON.stringify({ user_id: userId, role: 'member' })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || "Failed to add member");
+                    Log.add(`TEAM ▷ Member ${userId} added successfully`, "s");
+                    input.value = '';
+                    this.loadMembers();
+                } catch (e) { Log.add(`TEAM_ERROR ▷ ${e.message}`, "e"); }
+            },
+
+            async removeMember(userId) {
+                if (!confirm(`Confirm removal of member: ${userId}?`)) return;
+                try {
+                    const res = await fetch(`/api/org/members/${userId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${AuthUI.token}` }
+                    });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.detail || "Failed to remove member");
+                    }
+                    Log.add(`TEAM ▷ Member ${userId} removed`, "w");
+                    this.loadMembers();
+                } catch (e) { Log.add(`TEAM_ERROR ▷ ${e.message}`, "e"); }
             }
+        };
+
+        // In switchTab, add:
+        const _origSwitchTab = App.switchTab;
+        App.switchTab = function(name) {
+            _origSwitchTab.call(this, name);
+            if (name === 'team') App.loadMembers();
         };
     </script>
 </body>

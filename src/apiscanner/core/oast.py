@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict, Any, cast
 
-from core.engine import AsyncEngine
+from .engine import AsyncEngine
 
 @dataclass
 class Interaction:

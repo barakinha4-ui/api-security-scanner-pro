@@ -148,7 +148,8 @@ jobs:
       - name: Notify Team via Webhook
         env:
           STATUS: ${{ job.status }}
-          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }} # Adicione esta Secret no repo
+          # Adicione esta Secret no repo (Configurações do GitHub > Secrets > Actions)
+          WEBHOOK_URL: "${{ secrets.DISCORD_WEBHOOK_URL }}"
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "Nenhuma Secret WEBHOOK configurada. Pulando notificação."

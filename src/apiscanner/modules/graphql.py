@@ -9,8 +9,8 @@ import json
 import re
 from typing import List, Optional
 
-from core.plugins import BasePlugin
-from core.models import Finding, ScanResult, CVSS_PROFILES
+from ..core.plugins import BasePlugin
+from ..core.models import Finding, ScanResult, CVSS_PROFILES
 from payloads.database import GRAPHQL_PAYLOADS
 
 
@@ -140,6 +140,8 @@ class GraphQLPlugin(BasePlugin):
 
         try:
             data = resp.json()
+            if isinstance(data, dict) and "error" in data:
+                return []
         except Exception:
             return []
 

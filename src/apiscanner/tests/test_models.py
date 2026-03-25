@@ -1,4 +1,4 @@
-from core.models import Finding
+from .core.models import Finding
 
 def test_finding_to_dict():
     finding = Finding(

@@ -1,4 +1,4 @@
-from core.plugins import Registry
+from .core.plugins import Registry
 import os
 import sys
 
@@ -10,7 +10,7 @@ if PARENT_DIR not in sys.path:
 
 def test_plugin_discovery_and_instantiation():
     try:
-        from core.plugins import Registry
+        from .core.plugins import Registry
     except ImportError:
         pass # Handle tricky paths depending on running context
 

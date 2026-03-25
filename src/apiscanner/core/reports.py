@@ -5,8 +5,8 @@ import os
 import datetime
 from typing import Any, Dict, List
 from jinja2 import Environment, FileSystemLoader
-from core.models import ScanResult, Finding
-from core.logger import logger
+from .models import ScanResult, Finding
+from .logger import logger
 
 try:
     from weasyprint import HTML
@@ -33,7 +33,8 @@ class ReportGenerator:
             "total_requests": result.total_requests,
             "duration": result.duration_seconds,
             "technologies": result.technologies,
-            "waf": result.waf_detected
+            "waf": result.waf_detected,
+            "extra_data": result.extra_data
         }
         
         return template.render(**render_data)

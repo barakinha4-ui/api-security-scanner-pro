@@ -101,6 +101,11 @@
             }
         }
     </style>
+    <!-- Mermaid script for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
 </head>
 
 <body>
@@ -124,25 +129,64 @@
         </div>
     </div>
 
+    <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+        <div style="flex: 1; background: #f1f5f9; padding: 15px; border-radius: 8px;">
+            <h3>🛡️ Detecção de Infraestrutura</h3>
+            <p><strong>WAF:</strong> {{ waf or "Não detectado" }} {% if extra_data.waf_confidence %}(Confiança: {{
+                extra_data.waf_confidence }}%){% endif %}</p>
+            <p><strong>Tecnologias:</strong> {{ technologies|join(', ') or "Desconhecido" }}</p>
+        </div>
+
+        {% if extra_data.ssl_info %}
+        <div style="flex: 1; background: #f1f5f9; padding: 15px; border-radius: 8px;">
+            <h3>🔒 Certificado SSL</h3>
+            <p><strong>Common Name:</strong> {{ extra_data.ssl_info.common_name }}</p>
+            <p><strong>Emissor:</strong> {{ extra_data.ssl_info.issuer }}</p>
+            <p><strong>Válido até:</strong> {{ extra_data.ssl_info.valid_to }}</p>
+        </div>
+        {% endif %}
+    </div>
+
     <h2>📌 Findings por Severidade</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Tipo</th>
-                <th>Severidade</th>
-                <th>Endpoint</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for f in findings %}
-            <tr>
-                <td>{{ f.title }}</td>
-                <td><strong>{{ f.severity }}</strong></td>
-                <td>{{ f.endpoint }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+    <div style="display: flex; gap: 40px; align-items: flex-start; margin-bottom: 40px;">
+        <div style="flex: 1;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Severidade</th>
+                        <th>Endpoint</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in findings %}
+                    <tr>
+                        <td>{{ f.title }}</td>
+                        <td><strong>{{ f.severity }}</strong></td>
+                        <td>{{ f.endpoint }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Mermaid Severity Chart -->
+        <div style="flex: 1; text-align: center;" class="no-print">
+            <h3>Distribuição de Severidade</h3>
+            <div class="mermaid">
+                pie title Vulnerabilidades por Severidade
+                {% set critical = findings|selectattr("severity", "equalto", "CRITICAL")|list|length %}
+                {% set high = findings|selectattr("severity", "equalto", "HIGH")|list|length %}
+                {% set medium = findings|selectattr("severity", "equalto", "MEDIUM")|list|length %}
+                {% set low = findings|selectattr("severity", "equalto", "LOW")|list|length %}
+                {% if critical > 0 %}"CRITICAL" : {{ critical }}{% endif %}
+                {% if high > 0 %}"HIGH" : {{ high }}{% endif %}
+                {% if medium > 0 %}"MEDIUM" : {{ medium }}{% endif %}
+                {% if low > 0 %}"LOW" : {{ low }}{% endif %}
+            </div>
+        </div>
+    </div>
 
     <div style="page-break-after: always;"></div>
 
