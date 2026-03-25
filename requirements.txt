@@ -21,6 +21,7 @@ redis[asyncio]>=4.5.0
 # Advanced features
 watchdog==4.0.0
 weasyprint==61.2
+fpdf2==2.7.5
 cachetools==5.3.3
 celery[redis]==5.3.6
 flower==2.0.1

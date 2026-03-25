@@ -174,9 +174,14 @@ class Scanner:
             template_path = os.path.join(base_dir, "templates")
             generator = ReportGenerator(template_path)
             
-            report_name = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # Salva no diretório reports/
+            reports_dir = os.path.join(os.path.dirname(os.path.dirname(base_dir)), "reports")
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            report_name = os.path.join(reports_dir, f"report_{self.target}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
             generator.export(result, report_name)
-            await self._log(f"  {C.GREEN}✔{C.RESET} Relatório gerado com sucesso: {report_name}")
+            
+            await self._log(f"  {C.GREEN}✔{C.RESET} Relatório gerado: {os.path.basename(report_name)}")
         except Exception as e:
             logger.error(f"Erro ao gerar relatório: {e}")
             await self._log(f"  {C.RED}✘{C.RESET} Falha ao gerar relatório: {e}")

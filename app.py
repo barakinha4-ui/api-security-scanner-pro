@@ -561,6 +561,71 @@ async def get_job(job_id: str, ctx: AuthContext = Depends(get_auth_context)):
         raise HTTPException(status_code=403, detail="DataAccessDenied: Job belongs to another tenant")
     return job
 
+
+# ═══════════════════════════════════════════════════════════════
+# DOWNLOAD DE RELATÓRIOS
+# ═══════════════════════════════════════════════════════════════
+
+REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
+
+@app.get("/api/reports")
+async def list_reports(ctx: AuthContext = Depends(get_auth_context)):
+    """Lista todos os relatórios disponíveis para download."""
+    import glob
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    
+    # Lista relatórios (html e pdf)
+    patterns = ["*.html", "*.pdf", "*.json"]
+    reports = []
+    
+    for pattern in patterns:
+        for f in glob.glob(os.path.join(REPORTS_DIR, pattern)):
+            stat = os.stat(f)
+            reports.append({
+                "filename": os.path.basename(f),
+                "size": stat.st_size,
+                "created": datetime.fromtimestamp(stat.st_ctime).isoformat()
+            })
+    
+    # Ordena por data
+    reports.sort(key=lambda x: x["created"], reverse=True)
+    return {"reports": reports[:50]}
+
+
+@app.get("/api/reports/{filename}")
+async def download_report(filename: str, ctx: AuthContext = Depends(get_auth_context)):
+    """Baixa um relatório específico em HTML, PDF ou JSON."""
+    import glob
+    
+    # Validação de segurança: impede path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    # Busca o arquivo
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    search_patterns = [f"*{filename}*.*", f"report_{filename}.*"]
+    
+    found_file = None
+    for pattern in search_patterns:
+        matches = glob.glob(os.path.join(REPORTS_DIR, pattern))
+        if matches:
+            found_file = matches[0]
+            break
+    
+    if not found_file or not os.path.exists(found_file):
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    from fastapi.responses import FileResponse
+    import mimetypes
+    
+    media_type = mimetypes.guess_type(found_file)[0] or "application/octet-stream"
+    
+    return FileResponse(
+        found_file, 
+        media_type=media_type,
+        filename=os.path.basename(found_file)
+    )
+
 # ═══════════════════════════════════════════════════════════════
 # WEBSOCKET HANDLER — reescrito com polling e logging explícito
 # ═══════════════════════════════════════════════════════════════
