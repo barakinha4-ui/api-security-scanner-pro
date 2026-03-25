@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - VulnExusAI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+    <!-- Header -->
+    <nav class="border-b border-slate-700 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-shield-halved text-white text-sm"></i>
+                </div>
+                <span class="font-bold">VulnExusAI</span>
+                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded">ADMIN</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-slate-400">admin@vulnexusai.com</span>
+                <div class="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
+                    <i class="fas fa-user-gear"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-users text-blue-400 text-xl"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold mb-1" id="totalUsers">-</div>
+                <div class="text-slate-400 text-sm">Total de Usuários</div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-radar text-green-400 text-xl"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold mb-1" id="totalScans">-</div>
+                <div class="text-slate-400 text-sm">Total de Scans</div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-building text-purple-400 text-xl"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold mb-1" id="totalOrgs">-</div>
+                <div class="text-slate-400 text-sm">Organizações</div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-user-slash text-red-400 text-xl"></i>
+                    </div>
+                </div>
+                <div class="text-3xl font-bold mb-1" id="totalBanned">-</div>
+                <div class="text-slate-400 text-sm">Usuários Banidos</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <div class="flex gap-4 border-b border-slate-700 mb-6">
+                <button onclick="showTab('users')" class="px-4 py-2 text-white border-b-2 border-blue-500 font-medium" id="tab-users">
+                    <i class="fas fa-users mr-2"></i>Usuários
+                </button>
+                <button onclick="showTab('banned')" class="px-4 py-2 text-slate-400 hover:text-white" id="tab-banned">
+                    <i class="fas fa-ban mr-2"></i>Banidos
+                </button>
+                <button onclick="showTab('scans')" class="px-4 py-2 text-slate-400 hover:text-white" id="tab-scans">
+                    <i class="fas fa-radar mr-2"></i>Scans
+                </button>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="panel-users">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">Gerenciar Usuários</h3>
+                    <input type="text" placeholder="Buscar usuário..." class="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white" id="searchUser">
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Email</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Plano</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Scans</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Criado em</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-slate-400">Carregando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Banned Tab -->
+            <div id="panel-banned" class="hidden">
+                <h3 class="text-lg font-bold mb-4">Usuários Banidos</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Email</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Motivo</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Banido por</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Data</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Expira</th>
+                                <th class="text-left py-3 px-4 text-slate-400 font-medium text-sm">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bannedTable">
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-slate-400">Carregando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Scans Tab -->
+            <div id="panel-scans" class="hidden">
+                <h3 class="text-lg font-bold mb-4">Scans Recentes</h3>
+                <p class="text-slate-400">Lista de scans recentes no sistema.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ban -->
+    <div id="banModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Banir Usuário</h3>
+            <form id="banForm">
+                <input type="hidden" id="banUserId">
+                <div class="mb-4">
+                    <label class="block text-sm text-slate-400 mb-2">Email do usuário</label>
+                    <input type="text" id="banEmail" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white" readonly>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-slate-400 mb-2">Motivo</label>
+                    <textarea id="banReason" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white" rows="3" required></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-slate-400 mb-2">Dias de banimento (0 = permanente)</label>
+                    <input type="number" id="banDays" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white" value="0" min="0">
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeBanModal()" class="flex-1 bg-slate-700 py-2 rounded-lg hover:bg-slate-600">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-red-500 py-2 rounded-lg hover:bg-red-600">Banir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Change Plan -->
+    <div id="planModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">Alterar Plano</h3>
+            <form id="planForm">
+                <input type="hidden" id="planUserId">
+                <div class="mb-4">
+                    <label class="block text-sm text-slate-400 mb-2">Email do usuário</label>
+                    <input type="text" id="planEmail" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white" readonly>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-slate-400 mb-2">Novo Plano</label>
+                    <select id="planSelect" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                        <option value="free">Free</option>
+                        <option value="pro">Pro</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" onclick="closePlanModal()" class="flex-1 bg-slate-700 py-2 rounded-lg hover:bg-slate-600">Cancelar</button>
+                    <button type="submit" class="flex-1 bg-blue-500 py-2 rounded-lg hover:bg-blue-600">Alterar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        const TOKEN = localStorage.getItem('token') || '';
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/stats`, {
+                    headers: { 'Authorization': `Bearer ${TOKEN}` }
+                });
+                const data = await res.json();
+                document.getElementById('totalUsers').textContent = data.total_users || 0;
+                document.getElementById('totalScans').textContent = data.total_scans || 0;
+                document.getElementById('totalOrgs').textContent = data.total_organizations || 0;
+            } catch (e) {
+                console.error('Error loading stats:', e);
+            }
+        }
+
+        // Load users
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/users`, {
+                    headers: { 'Authorization': `Bearer ${TOKEN}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('usersTable');
+                
+                if (!data.users || data.users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400">Nenhum usuário encontrado</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.users.map(user => `
+                    <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                        <td class="py-3 px-4">${user.email}</td>
+                        <td class="py-3 px-4"><span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">${user.plan || 'free'}</span></td>
+                        <td class="py-3 px-4">${user.scans_count || 0}</td>
+                        <td class="py-3 px-4 text-slate-400">${user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</td>
+                        <td class="py-3 px-4">
+                            <button onclick="openPlanModal('${user.id}', '${user.email}')" class="text-blue-400 hover:text-blue-300 mr-3">
+                                <i class="fas fa-crown"></i>
+                            </button>
+                            <button onclick="openBanModal('${user.id}', '${user.email}')" class="text-red-400 hover:text-red-300">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading users:', e);
+            }
+        }
+
+        // Load banned users
+        async function loadBanned() {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/banned-users`, {
+                    headers: { 'Authorization': `Bearer ${TOKEN}` }
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('bannedTable');
+                
+                if (!data.banned_users || data.banned_users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">Nenhum usuário banido</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = data.banned_users.map(ban => `
+                    <tr class="border-b border-slate-800 hover:bg-slate-800/50">
+                        <td class="py-3 px-4">${ban.email}</td>
+                        <td class="py-3 px-4">${ban.reason}</td>
+                        <td class="py-3 px-4 text-slate-400">${ban.banned_by}</td>
+                        <td class="py-3 px-4 text-slate-400">${new Date(ban.banned_at).toLocaleDateString()}</td>
+                        <td class="py-3 px-4 text-slate-400">${ban.is_permanent ? 'Permanente' : new Date(ban.expires_at).toLocaleDateString()}</td>
+                        <td class="py-3 px-4">
+                            <button onclick="unbanUser('${ban.user_id}')" class="text-green-400 hover:text-green-300">
+                                <i class="fas fa-user-check"></i> Desbanir
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading banned:', e);
+            }
+        }
+
+        // Tab switching
+        function showTab(tab) {
+            document.getElementById('panel-users').classList.add('hidden');
+            document.getElementById('panel-banned').classList.add('hidden');
+            document.getElementById('panel-scans').classList.add('hidden');
+            
+            document.getElementById('tab-users').classList.remove('text-white', 'border-b-2', 'border-blue-500');
+            document.getElementById('tab-banned').classList.remove('text-white', 'border-b-2', 'border-blue-500');
+            document.getElementById('tab-scans').classList.remove('text-white', 'border-b-2', 'border-blue-500');
+            
+            document.getElementById('tab-users').classList.add('text-slate-400');
+            document.getElementById('tab-banned').classList.add('text-slate-400');
+            document.getElementById('tab-scans').classList.add('text-slate-400');
+            
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('text-white', 'border-b-2', 'border-blue-500');
+            document.getElementById(`tab-${tab}`).classList.remove('text-slate-400');
+            
+            if (tab === 'users') loadUsers();
+            if (tab === 'banned') loadBanned();
+        }
+
+        // Modal functions
+        function openBanModal(userId, email) {
+            document.getElementById('banUserId').value = userId;
+            document.getElementById('banEmail').value = email;
+            document.getElementById('banModal').classList.remove('hidden');
+            document.getElementById('banModal').classList.add('flex');
+        }
+
+        function closeBanModal() {
+            document.getElementById('banModal').classList.add('hidden');
+            document.getElementById('banModal').classList.remove('flex');
+        }
+
+        function openPlanModal(userId, email) {
+            document.getElementById('planUserId').value = userId;
+            document.getElementById('planEmail').value = email;
+            document.getElementById('planModal').classList.remove('hidden');
+            document.getElementById('planModal').classList.add('flex');
+        }
+
+        function closePlanModal() {
+            document.getElementById('planModal').classList.add('hidden');
+            document.getElementById('planModal').classList.remove('flex');
+        }
+
+        // Ban user
+        document.getElementById('banForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('banUserId').value;
+            const reason = document.getElementById('banReason').value;
+            const days = parseInt(document.getElementById('banDays').value) || 0;
+            
+            await fetch(`${API_URL}/api/admin/users/ban`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: userId, reason, expires_days: days > 0 ? days : null })
+            });
+            
+            closeBanModal();
+            loadUsers();
+            loadBanned();
+        };
+
+        // Change plan
+        document.getElementById('planForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('planUserId').value;
+            const plan = document.getElementById('planSelect').value;
+            
+            await fetch(`${API_URL}/api/admin/users/${userId}/plan`, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: userId, plan })
+            });
+            
+            closePlanModal();
+            loadUsers();
+        };
+
+        // Unban user
+        async function unbanUser(userId) {
+            if (!confirm(' Deseja desbanir este usuário?')) return;
+            
+            await fetch(`${API_URL}/api/admin/users/${userId}/unban`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${TOKEN}` }
+            });
+            
+            loadUsers();
+            loadBanned();
+        }
+
+        // Initialize
+        loadStats();
+        loadUsers();
+    </script>
+</body>
+</html>

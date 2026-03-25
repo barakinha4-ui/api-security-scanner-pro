@@ -1076,5 +1076,126 @@ async def remove_member(
     await db.commit()
     return {"message": "Membro removido"}
 
+
+# ═══════════════════════════════════════════════════════════════
+# PAINEL ADMIN
+# ═══════════════════════════════════════════════════════════════
+
+from src.apiscanner.admin import admin_manager
+from pydantic import BaseModel
+
+
+class BanUserRequest(BaseModel):
+    user_id: str
+    reason: str
+    expires_days: Optional[int] = None  # None = permanente
+
+
+class UpdatePlanRequest(BaseModel):
+    user_id: str
+    plan: str
+
+
+@app.get("/api/admin/stats")
+async def admin_get_stats(ctx: AuthContext = Depends(get_auth_context)):
+    """Retorna estatísticas gerais do sistema (apenas admins)."""
+    # Verifica se é admin
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    stats = await admin_manager.get_overall_stats()
+    return stats
+
+
+@app.get("/api/admin/users")
+async def admin_list_users(
+    limit: int = 50,
+    offset: int = 0,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Lista todos os usuários (apenas admins)."""
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    users = await admin_manager.list_users(limit=limit, offset=offset)
+    return {"users": users}
+
+
+@app.get("/api/admin/users/{user_id}")
+async def admin_get_user(
+    user_id: str,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Busca detalhes de um usuário (apenas admins)."""
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    user = await admin_manager.get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    stats = await admin_manager.get_user_stats(user_id)
+    return {"user": user, "stats": stats}
+
+
+@app.put("/api/admin/users/{user_id}/plan")
+async def admin_update_user_plan(
+    user_id: str,
+    request: UpdatePlanRequest,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Atualiza plano de um usuário (apenas admins)."""
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    success = await admin_manager.update_user_plan(user_id, request.plan)
+    if not success:
+        raise HTTPException(status_code=400, detail="Erro ao atualizar plano")
+    return {"message": f"Plano atualizado para {request.plan}"}
+
+
+@app.post("/api/admin/users/ban")
+async def admin_ban_user(
+    request: BanUserRequest,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Bane um usuário (apenas admins)."""
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    success = await admin_manager.ban_user(
+        user_id=request.user_id,
+        reason=request.reason,
+        banned_by=ctx.user_id,
+        expires_days=request.expires_days
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail="Erro ao banir usuário")
+    return {"message": "Usuário banido com sucesso"}
+
+
+@app.post("/api/admin/users/{user_id}/unban")
+async def admin_unban_user(
+    user_id: str,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Desbane um usuário (apenas admins)."""
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    success = await admin_manager.unban_user(user_id)
+    return {"message": "Usuário desbanido"}
+
+
+@app.get("/api/admin/banned-users")
+async def admin_list_banned_users(ctx: AuthContext = Depends(get_auth_context)):
+    """Lista usuários banidos (apenas admins)."""
+    if not admin_manager.is_admin(ctx.email):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    
+    banned = await admin_manager.list_banned_users()
+    return {"banned_users": banned}
+
+
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
