@@ -544,13 +544,51 @@ async def _run_scan_inline(target: str, user_id: str, job_id: str, scan_type: st
         summary = result.summary if hasattr(result, 'summary') else {}
         findings = len(result.findings) if hasattr(result, 'findings') else 0
 
+        # Conta por severidade
+        critical = sum(1 for f in result.findings if getattr(f, 'severity', '') == 'critical')
+        high = sum(1 for f in result.findings if getattr(f, 'severity', '') == 'high')
+        medium = sum(1 for f in result.findings if getattr(f, 'severity', '') == 'medium')
+        low = sum(1 for f in result.findings if getattr(f, 'severity', '') == 'low')
+
         await job_repo.update(job_id, {"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat(), "summary": summary}, organization_id=organization_id)
         await _publish(job_id, {"status": "completed", "type": "status", "job_id": job_id, "summary": summary, "message": f"Scan completed - {findings} findings"})
+
+        # Envia notificação Slack/Teams
+        try:
+            from src.apiscanner.notifications import notifications
+            report_url = f"{os.getenv('APP_URL', 'http://localhost:8000')}/api/reports/{job_id}"
+            await notifications.notify_scan_completed(
+                target=target,
+                status="completed",
+                findings_count=findings,
+                critical=critical,
+                high=high,
+                medium=medium,
+                low=low,
+                report_url=report_url
+            )
+        except Exception as notif_err:
+            print(f"Notification error: {notif_err}")
 
     except Exception as e:
         import traceback
         await job_repo.update(job_id, {"status": "failed", "error": str(e)}, organization_id=organization_id)
         await _publish(job_id, {"status": "failed", "type": "status", "job_id": job_id, "error": str(e), "message": f"Scan failed: {e}"})
+        
+        # Envia notificação de falha
+        try:
+            from src.apiscanner.notifications import notifications
+            await notifications.notify_scan_completed(
+                target=target,
+                status="failed",
+                findings_count=0,
+                critical=0,
+                high=0,
+                medium=0,
+                low=0
+            )
+        except Exception:
+            pass
 
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str, ctx: AuthContext = Depends(get_auth_context)):
