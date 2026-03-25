@@ -664,6 +664,85 @@ async def download_report(filename: str, ctx: AuthContext = Depends(get_auth_con
         filename=os.path.basename(found_file)
     )
 
+
+# ═══════════════════════════════════════════════════════════════
+# SCANS AGENDADOS
+# ═══════════════════════════════════════════════════════════════
+
+from src.apiscanner.scheduled_scans import scheduled_scan_manager, ScheduleFrequency
+
+scheduled_scans_manager = scheduled_scan_manager
+
+
+class CreateScheduledScanRequest(BaseModel):
+    target: str
+    scan_type: str = "full"
+    frequency: str = "daily"
+
+
+@app.post("/api/scheduled-scans", status_code=201)
+async def create_scheduled_scan(
+    request: CreateScheduledScanRequest,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Cria um novo scan agendado."""
+    scan = await scheduled_scans_manager.create(
+        target=request.target,
+        scan_type=request.scan_type,
+        frequency=request.frequency,
+        organization_id=ctx.organization_id,
+        user_id=ctx.user_id
+    )
+    return scan.to_dict()
+
+
+@app.get("/api/scheduled-scans")
+async def list_scheduled_scans(ctx: AuthContext = Depends(get_auth_context)):
+    """Lista todos os scans agendados."""
+    scans = await scheduled_scans_manager.list(ctx.organization_id)
+    return {"scheduled_scans": [s.to_dict() for s in scans]}
+
+
+@app.get("/api/scheduled-scans/{scan_id}")
+async def get_scheduled_scan(
+    scan_id: str,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Busca um scan agendado pelo ID."""
+    scan = await scheduled_scans_manager.get(scan_id, ctx.organization_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scheduled scan not found")
+    return scan.to_dict()
+
+
+@app.put("/api/scheduled-scans/{scan_id}")
+async def update_scheduled_scan(
+    scan_id: str,
+    enabled: Optional[bool] = None,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Atualiza um scan agendado."""
+    updates = {}
+    if enabled is not None:
+        updates["enabled"] = enabled
+    
+    scan = await scheduled_scans_manager.update(scan_id, ctx.organization_id, **updates)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scheduled scan not found")
+    return scan.to_dict()
+
+
+@app.delete("/api/scheduled-scans/{scan_id}")
+async def delete_scheduled_scan(
+    scan_id: str,
+    ctx: AuthContext = Depends(get_auth_context)
+):
+    """Remove um scan agendado."""
+    deleted = await scheduled_scans_manager.delete(scan_id, ctx.organization_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Scheduled scan not found")
+    return {"message": "Scheduled scan deleted"}
+
 # ═══════════════════════════════════════════════════════════════
 # WEBSOCKET HANDLER — reescrito com polling e logging explícito
 # ═══════════════════════════════════════════════════════════════
